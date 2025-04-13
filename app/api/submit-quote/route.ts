@@ -5,7 +5,13 @@ import { Resend } from 'resend'
 // Initialize Supabase client
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false
+    }
+  }
 )
 
 // Initialize Resend client
@@ -230,7 +236,7 @@ export async function POST(request: Request) {
     if (process.env.RESEND_API_KEY) {
       try {
         await sendEmail(
-          'support@quotelinker.com',
+          process.env.EMAIL_TO!,
           'New Quote Request',
           `
             <h2>New Quote Request Received</h2>
@@ -268,7 +274,7 @@ export async function POST(request: Request) {
               <li>Coverage Amount: $${leadData.coverage_amount.toLocaleString()}</li>
               <li>Term Length: ${leadData.term_length} years</li>
             </ul>
-            <p>If you have any questions in the meantime, please don't hesitate to contact us at support@quotelinker.com.</p>
+            <p>If you have any questions in the meantime, please don't hesitate to contact us at ${process.env.EMAIL_TO}.</p>
             <p>Best regards,<br>The QuoteLinker Team</p>
           `
         );
