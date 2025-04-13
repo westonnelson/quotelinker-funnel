@@ -1,15 +1,18 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { Tooltip } from 'react-tooltip'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline'
+import { InputMask } from 'react-input-mask'
+import Link from 'next/link'
 
 declare global {
   interface Window {
     hubspot?: {
       track: (event: string, properties: Record<string, any>) => void;
     };
+    gtag?: (command: string, action: string, params: any) => void;
   }
 }
 
@@ -24,15 +27,31 @@ interface FormData {
   coverageAmount: string
   termLength: string
   tobaccoUse: string
-  occupation: string
   annualIncome: string
+  funnelType?: string
+  utmSource?: string
+  utmMedium?: string
+  utmCampaign?: string
 }
 
-export default function QuoteForm() {
+interface QuoteFormProps {
+  funnelType?: string
+}
+
+export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currentStep, setCurrentStep] = useState(1)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [legalConsent, setLegalConsent] = useState(false)
+  
+  // Get UTM parameters
+  const utmSource = searchParams.get('utm_source') || ''
+  const utmMedium = searchParams.get('utm_medium') || ''
+  const utmCampaign = searchParams.get('utm_campaign') || ''
   
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -44,9 +63,12 @@ export default function QuoteForm() {
     healthStatus: '',
     coverageAmount: '',
     termLength: '',
-    tobaccoUse: '',
-    occupation: '',
-    annualIncome: ''
+    tobaccoUse: 'no',
+    annualIncome: '',
+    funnelType,
+    utmSource,
+    utmMedium,
+    utmCampaign
   })
 
   const tooltips = {
@@ -60,46 +82,67 @@ export default function QuoteForm() {
     coverageAmount: 'Recommended: 10-12x your annual income',
     termLength: 'How long you need coverage',
     tobaccoUse: 'Affects your rate calculation',
-    occupation: 'Helps determine coverage needs',
     annualIncome: 'Helps recommend appropriate coverage'
+  }
+
+  const validateField = (name: string, value: string) => {
+    switch (name) {
+      case 'firstName':
+        return value.trim() ? '' : 'First name is required'
+      case 'lastName':
+        return value.trim() ? '' : 'Last name is required'
+      case 'email':
+        return value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? '' : 'Please enter a valid email address'
+      case 'phone':
+        // Allow various phone formats but ensure it has at least 10 digits
+        const digitsOnly = value.replace(/\D/g, '')
+        return digitsOnly.length >= 10 ? '' : 'Please enter a valid phone number with at least 10 digits'
+      case 'age':
+        const age = parseInt(value)
+        return !isNaN(age) && age >= 18 && age <= 85 ? '' : 'Age must be between 18 and 85'
+      case 'gender':
+        return value ? '' : 'Please select your gender'
+      case 'healthStatus':
+        return value ? '' : 'Please select your health status'
+      case 'coverageAmount':
+        return value ? '' : 'Please select coverage amount'
+      case 'termLength':
+        return value ? '' : 'Please select term length'
+      case 'tobaccoUse':
+        return value ? '' : 'Please select if you use tobacco'
+      default:
+        return ''
+    }
   }
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
     setFormData(prev => ({ ...prev, [name]: value }))
     setError('')
+    
+    // Real-time validation
+    const fieldError = validateField(name, value)
+    setValidationErrors(prev => ({
+      ...prev,
+      [name]: fieldError
+    }))
   }
 
   const validateStep = (step: number) => {
-    switch (step) {
-      case 1:
-        if (!formData.firstName || !formData.lastName) {
-          setError('Please enter your full name')
-          return false
-        }
-        if (!formData.email.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-          setError('Please enter a valid email address')
-          return false
-        }
-        if (!formData.phone.match(/^\d{10}$/)) {
-          setError('Please enter a valid 10-digit phone number')
-          return false
-        }
-        break
-      case 2:
-        if (!formData.age || !formData.gender || !formData.healthStatus) {
-          setError('Please complete all health information')
-          return false
-        }
-        break
-      case 3:
-        if (!formData.coverageAmount || !formData.termLength) {
-          setError('Please select your coverage preferences')
-          return false
-        }
-        break
-    }
-    return true
+    const stepFields = {
+      1: ['firstName', 'lastName', 'email', 'phone'],
+      2: ['age', 'gender', 'healthStatus', 'tobaccoUse'],
+      3: ['coverageAmount', 'termLength']
+    }[step] || []
+
+    const errors: Record<string, string> = {}
+    stepFields.forEach(field => {
+      const error = validateField(field, formData[field as keyof FormData])
+      if (error) errors[field] = error
+    })
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const handleNext = () => {
@@ -117,8 +160,12 @@ export default function QuoteForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!validateStep(currentStep)) return
+    if (!legalConsent) {
+      setError('You must agree to the Privacy Policy and Terms of Service to continue.')
+      return
+    }
 
-    setLoading(true)
+    setIsSubmitting(true)
     setError('')
     
     try {
@@ -136,11 +183,11 @@ export default function QuoteForm() {
         throw new Error(result.error || 'Submission failed')
       }
       
-      // Track form submission
+      // Track form submission with GA4
       if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'form_submission', {
+        window.gtag('event', 'quote_submitted', {
           event_category: 'quote_request',
-          event_label: 'quote_form',
+          event_label: formData.funnelType || 'quote_form',
           value: parseInt(formData.coverageAmount, 10)
         })
       }
@@ -152,7 +199,8 @@ export default function QuoteForm() {
           lastName: formData.lastName,
           email: formData.email,
           coverageAmount: formData.coverageAmount,
-          termLength: formData.termLength
+          termLength: formData.termLength,
+          funnelType: formData.funnelType
         })
       }
 
@@ -161,34 +209,51 @@ export default function QuoteForm() {
     } catch (err) {
       console.error('Form submission error:', err)
       setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
-      setLoading(false)
+      setIsSubmitting(false)
+    }
+  }
+
+  // Format phone number for display
+  const formatPhoneNumber = (value: string) => {
+    const digitsOnly = value.replace(/\D/g, '')
+    if (digitsOnly.length === 0) return ''
+    
+    if (digitsOnly.length <= 3) {
+      return `(${digitsOnly}`
+    } else if (digitsOnly.length <= 6) {
+      return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`
+    } else {
+      return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`
     }
   }
 
   return (
-    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8">
+    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-xl p-6 sm:p-8 border border-gray-100">
       <div className="mb-8">
         <div className="flex justify-between mb-2">
           {[1, 2, 3].map((step) => (
             <div
               key={step}
-              className={`w-1/3 h-2 rounded-full mx-1 ${
+              className={`w-1/3 h-2 rounded-full mx-1 transition-colors duration-300 ${
                 step <= currentStep ? 'bg-[#00F2F2]' : 'bg-gray-200'
               }`}
             />
           ))}
         </div>
-        <h2 className="text-2xl font-semibold text-center text-gray-900 mb-2">
+        <h2 className="text-xl sm:text-2xl font-bold text-center text-gray-900 mb-2">
           {currentStep === 1 && 'Personal Information'}
           {currentStep === 2 && 'Health Information'}
           {currentStep === 3 && 'Coverage Preferences'}
         </h2>
+        <p className="text-sm text-gray-500 text-center">
+          Step {currentStep} of 3
+        </p>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {currentStep === 1 && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   First Name *
@@ -203,9 +268,14 @@ export default function QuoteForm() {
                   value={formData.firstName}
                   onChange={handleInputChange}
                   placeholder="John"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                    validationErrors.firstName ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
-                <Tooltip id="firstName-tooltip" content={tooltips.firstName} />
+                {validationErrors.firstName && (
+                  <p className="mt-1 text-sm text-red-500">{validationErrors.firstName}</p>
+                )}
+                <ReactTooltip id="firstName-tooltip" content={tooltips.firstName} />
               </div>
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -221,9 +291,14 @@ export default function QuoteForm() {
                   value={formData.lastName}
                   onChange={handleInputChange}
                   placeholder="Doe"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                    validationErrors.lastName ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
-                <Tooltip id="lastName-tooltip" content={tooltips.lastName} />
+                {validationErrors.lastName && (
+                  <p className="mt-1 text-sm text-red-500">{validationErrors.lastName}</p>
+                )}
+                <ReactTooltip id="lastName-tooltip" content={tooltips.lastName} />
               </div>
             </div>
             <div className="relative">
@@ -240,9 +315,14 @@ export default function QuoteForm() {
                 value={formData.email}
                 onChange={handleInputChange}
                 placeholder="john.doe@example.com"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                  validationErrors.email ? 'border-red-500' : 'border-gray-300'
+                }`}
               />
-              <Tooltip id="email-tooltip" content={tooltips.email} />
+              {validationErrors.email && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.email}</p>
+              )}
+              <ReactTooltip id="email-tooltip" content={tooltips.email} />
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -252,22 +332,34 @@ export default function QuoteForm() {
                   data-tooltip-id="phone-tooltip"
                 />
               </label>
-              <input
-                type="tel"
-                name="phone"
+              <InputMask
+                mask="(999) 999-9999"
+                maskChar={null}
                 value={formData.phone}
-                onChange={handleInputChange}
+                onChange={(e) => handleInputChange({ target: { name: 'phone', value: e.target.value } })}
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                  validationErrors.phone ? 'border-red-500' : 'border-gray-300'
+                }`}
                 placeholder="(555) 123-4567"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                alwaysShowMask={false}
+                beforeMaskedStateChange={(state) => {
+                  return {
+                    ...state,
+                    value: state.value.replace(/\D/g, '')
+                  }
+                }}
               />
-              <Tooltip id="phone-tooltip" content={tooltips.phone} />
+              {validationErrors.phone && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.phone}</p>
+              )}
+              <ReactTooltip id="phone-tooltip" content={tooltips.phone} />
             </div>
           </div>
         )}
 
         {currentStep === 2 && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Age *
@@ -284,9 +376,14 @@ export default function QuoteForm() {
                   placeholder="35"
                   min="18"
                   max="85"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                    validationErrors.age ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
-                <Tooltip id="age-tooltip" content={tooltips.age} />
+                {validationErrors.age && (
+                  <p className="mt-1 text-sm text-red-500">{validationErrors.age}</p>
+                )}
+                <ReactTooltip id="age-tooltip" content={tooltips.age} />
               </div>
               <div className="relative">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -300,14 +397,19 @@ export default function QuoteForm() {
                   name="gender"
                   value={formData.gender}
                   onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                  className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                    validationErrors.gender ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 >
                   <option value="">Select Gender</option>
                   <option value="male">Male</option>
                   <option value="female">Female</option>
                   <option value="other">Other</option>
                 </select>
-                <Tooltip id="gender-tooltip" content={tooltips.gender} />
+                {validationErrors.gender && (
+                  <p className="mt-1 text-sm text-red-500">{validationErrors.gender}</p>
+                )}
+                <ReactTooltip id="gender-tooltip" content={tooltips.gender} />
               </div>
             </div>
             <div className="relative">
@@ -322,7 +424,9 @@ export default function QuoteForm() {
                 name="healthStatus"
                 value={formData.healthStatus}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                  validationErrors.healthStatus ? 'border-red-500' : 'border-gray-300'
+                }`}
               >
                 <option value="">Select Health Status</option>
                 <option value="excellent">Excellent</option>
@@ -330,7 +434,10 @@ export default function QuoteForm() {
                 <option value="fair">Fair</option>
                 <option value="poor">Poor</option>
               </select>
-              <Tooltip id="health-tooltip" content={tooltips.healthStatus} />
+              {validationErrors.healthStatus && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.healthStatus}</p>
+              )}
+              <ReactTooltip id="health-tooltip" content={tooltips.healthStatus} />
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -340,18 +447,34 @@ export default function QuoteForm() {
                   data-tooltip-id="tobacco-tooltip"
                 />
               </label>
-              <select
-                name="tobaccoUse"
-                value={formData.tobaccoUse}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
-              >
-                <option value="">Select Tobacco Use</option>
-                <option value="never">Never Used</option>
-                <option value="former">Former User</option>
-                <option value="current">Current User</option>
-              </select>
-              <Tooltip id="tobacco-tooltip" content={tooltips.tobaccoUse} />
+              <div className="flex space-x-4 mt-2">
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="tobaccoUse"
+                    value="no"
+                    checked={formData.tobaccoUse === 'no'}
+                    onChange={handleInputChange}
+                    className="form-radio h-4 w-4 text-[#00F2F2] focus:ring-[#00F2F2]"
+                  />
+                  <span className="ml-2 text-gray-700">No</span>
+                </label>
+                <label className="inline-flex items-center">
+                  <input
+                    type="radio"
+                    name="tobaccoUse"
+                    value="yes"
+                    checked={formData.tobaccoUse === 'yes'}
+                    onChange={handleInputChange}
+                    className="form-radio h-4 w-4 text-[#00F2F2] focus:ring-[#00F2F2]"
+                  />
+                  <span className="ml-2 text-gray-700">Yes</span>
+                </label>
+              </div>
+              {validationErrors.tobaccoUse && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.tobaccoUse}</p>
+              )}
+              <ReactTooltip id="tobacco-tooltip" content={tooltips.tobaccoUse} />
             </div>
           </div>
         )}
@@ -370,7 +493,9 @@ export default function QuoteForm() {
                 name="coverageAmount"
                 value={formData.coverageAmount}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                  validationErrors.coverageAmount ? 'border-red-500' : 'border-gray-300'
+                }`}
               >
                 <option value="">Select Coverage Amount</option>
                 <option value="100000">$100,000</option>
@@ -380,7 +505,10 @@ export default function QuoteForm() {
                 <option value="1000000">$1,000,000</option>
                 <option value="2000000">$2,000,000+</option>
               </select>
-              <Tooltip id="coverage-tooltip" content={tooltips.coverageAmount} />
+              {validationErrors.coverageAmount && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.coverageAmount}</p>
+              )}
+              <ReactTooltip id="coverage-tooltip" content={tooltips.coverageAmount} />
             </div>
             <div className="relative">
               <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -394,60 +522,88 @@ export default function QuoteForm() {
                 name="termLength"
                 value={formData.termLength}
                 onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                  validationErrors.termLength ? 'border-red-500' : 'border-gray-300'
+                }`}
               >
                 <option value="">Select Term Length</option>
                 <option value="10">10 Years</option>
-                <option value="15">15 Years</option>
                 <option value="20">20 Years</option>
-                <option value="25">25 Years</option>
                 <option value="30">30 Years</option>
               </select>
-              <Tooltip id="term-tooltip" content={tooltips.termLength} />
+              {validationErrors.termLength && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.termLength}</p>
+              )}
+              <ReactTooltip id="term-tooltip" content={tooltips.termLength} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Occupation
-                  <QuestionMarkCircleIcon 
-                    className="inline-block w-4 h-4 ml-1 text-gray-400 cursor-help"
-                    data-tooltip-id="occupation-tooltip"
-                  />
-                </label>
-                <input
-                  type="text"
-                  name="occupation"
-                  value={formData.occupation}
-                  onChange={handleInputChange}
-                  placeholder="Software Engineer"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+            <div className="relative">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Annual Income
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400 cursor-help"
+                  data-tooltip-id="income-tooltip"
                 />
-                <Tooltip id="occupation-tooltip" content={tooltips.occupation} />
-              </div>
+              </label>
               <div className="relative">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Annual Income
-                  <QuestionMarkCircleIcon 
-                    className="inline-block w-4 h-4 ml-1 text-gray-400 cursor-help"
-                    data-tooltip-id="income-tooltip"
-                  />
-                </label>
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span className="text-gray-500 sm:text-sm">$</span>
+                </div>
                 <input
                   type="text"
                   name="annualIncome"
                   value={formData.annualIncome}
-                  onChange={handleInputChange}
+                  onChange={(e) => {
+                    // Only allow numbers
+                    const value = e.target.value.replace(/\D/g, '')
+                    handleInputChange({ target: { name: 'annualIncome', value } })
+                  }}
                   placeholder="75,000"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2]"
+                  className={`w-full pl-7 pr-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                    validationErrors.annualIncome ? 'border-red-500' : 'border-gray-300'
+                  }`}
                 />
-                <Tooltip id="income-tooltip" content={tooltips.annualIncome} />
               </div>
+              {validationErrors.annualIncome && (
+                <p className="mt-1 text-sm text-red-500">{validationErrors.annualIncome}</p>
+              )}
+              <Tooltip id="income-tooltip" content={tooltips.annualIncome} />
+            </div>
+            <div className="relative mt-6">
+              <div className="flex items-start">
+                <div className="flex items-center h-5">
+                  <input
+                    id="legal-consent"
+                    name="legal-consent"
+                    type="checkbox"
+                    checked={legalConsent}
+                    onChange={(e) => setLegalConsent(e.target.checked)}
+                    className="h-4 w-4 text-[#00F2F2] focus:ring-[#00F2F2] border-gray-300 rounded"
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="legal-consent" className="font-medium text-gray-700">
+                    I agree to be contacted via phone, text, or email. I have read and agree to the{' '}
+                    <Link href="/privacy-policy" className="text-[#00F2F2] hover:text-[#00D6D6]">
+                      Privacy Policy
+                    </Link>{' '}
+                    and{' '}
+                    <Link href="/terms-of-service" className="text-[#00F2F2] hover:text-[#00D6D6]">
+                      Terms of Service
+                    </Link>.
+                  </label>
+                </div>
+              </div>
+              {!legalConsent && error && (
+                <p className="mt-1 text-sm text-red-500">{error}</p>
+              )}
             </div>
           </div>
         )}
 
         {error && (
-          <div className="text-red-500 text-sm text-center">{error}</div>
+          <div className="text-red-500 text-sm text-center bg-red-50 p-3 rounded-lg">
+            {error}
+          </div>
         )}
 
         <div className="flex justify-between mt-8">
@@ -456,6 +612,7 @@ export default function QuoteForm() {
               type="button"
               onClick={handleBack}
               className="px-6 py-2 text-gray-600 hover:text-gray-900 transition-colors"
+              disabled={isSubmitting}
             >
               Back
             </button>
@@ -464,17 +621,28 @@ export default function QuoteForm() {
             <button
               type="button"
               onClick={handleNext}
-              className="ml-auto px-6 py-2 bg-[#00F2F2] text-gray-900 rounded-lg hover:bg-[#00D6D6] transition-colors"
+              className="ml-auto px-6 py-2 bg-[#00F2F2] text-gray-900 rounded-lg hover:bg-[#00D6D6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting || Object.keys(validationErrors).length > 0}
             >
               Next
             </button>
           ) : (
             <button
               type="submit"
-              disabled={loading}
-              className="ml-auto px-6 py-2 bg-[#00F2F2] text-gray-900 rounded-lg hover:bg-[#00D6D6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isSubmitting || Object.keys(validationErrors).length > 0}
+              className="ml-auto px-6 py-3 bg-[#00F2F2] text-gray-900 rounded-lg hover:bg-[#00D6D6] transition-colors disabled:opacity-50 disabled:cursor-not-allowed font-semibold shadow-md hover:shadow-lg"
             >
-              {loading ? 'Submitting...' : 'Get Your Quote'}
+              {isSubmitting ? (
+                <span className="flex items-center">
+                  <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-gray-900" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Submitting...
+                </span>
+              ) : (
+                'Get Your Quote'
+              )}
             </button>
           )}
         </div>

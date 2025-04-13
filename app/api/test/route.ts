@@ -1,57 +1,48 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+)
 
-export async function GET(request: Request) {
+export async function GET() {
   try {
-    console.log('Testing Supabase connection')
-    console.log('Config:', { 
-      hasUrl: !!supabaseUrl, 
-      hasKey: !!supabaseAnonKey,
-      url: supabaseUrl
-    })
+    console.log('Testing Supabase connection');
+    console.log('Supabase config:', {
+      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
+      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
+    });
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Missing Supabase configuration')
-    }
-
-    const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    
-    // List all tables in the public schema
-    const { data: tables, error: tablesError } = await supabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public')
-
-    if (tablesError) {
-      console.error('Error fetching tables:', tablesError)
-      throw tablesError
-    }
-
-    // Try to query the leads table
+    // Try to query the leads table directly
     const { data: leads, error: leadsError } = await supabase
       .from('leads')
       .select('*')
-      .limit(1)
+      .limit(1);
+
+    if (leadsError) {
+      console.error('Error querying leads table:', leadsError);
+      return NextResponse.json({ 
+        success: false, 
+        error: leadsError.message,
+        phase: 'query_leads',
+        details: leadsError
+      });
+    }
 
     return NextResponse.json({ 
       success: true, 
-      tables,
-      hasLeadsTable: !leadsError,
-      leadsError: leadsError ? {
-        message: leadsError.message,
-        details: leadsError.details,
-        hint: leadsError.hint,
-        code: leadsError.code
-      } : null
-    })
+      message: 'Supabase connection working',
+      leads
+    });
+
   } catch (error) {
-    console.error('Test endpoint error:', error)
+    console.error('Test endpoint error:', error);
     return NextResponse.json({ 
       success: false, 
-      error: error instanceof Error ? error.message : 'Unknown error'
-    }, { status: 500 })
+      error: error instanceof Error ? error.message : 'Unknown error',
+      details: error instanceof Error ? error : undefined
+    });
   }
 } 
