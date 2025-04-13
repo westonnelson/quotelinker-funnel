@@ -185,16 +185,27 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          ...formData,
-          funnelType: formData.funnelType || undefined,
-          utmSource: formData.utmSource || undefined,
-          utmMedium: formData.utmMedium || undefined,
-          utmCampaign: formData.utmCampaign || undefined
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          phone: formData.phone,
+          dateOfBirth: formData.dateOfBirth,
+          gender: formData.gender,
+          insuranceType: formData.insuranceType,
+          coverageAmount: formData.coverageAmount,
+          termLength: formData.termLength,
+          tobaccoUse: formData.tobaccoUse,
+          source: formData.funnelType || 'term_life_quote_form',
+          utmSource: formData.utmSource,
+          utmMedium: formData.utmMedium,
+          utmCampaign: formData.utmCampaign
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Failed to submit form');
+        throw new Error(data.error || 'Failed to submit form');
       }
 
       // Track form submission in Google Analytics
@@ -209,7 +220,8 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
       // Redirect to thank you page
       router.push('/thank-you');
     } catch (err) {
-      setError('An error occurred while submitting the form. Please try again.');
+      console.error('Form submission error:', err);
+      setError(err instanceof Error ? err.message : 'An error occurred while submitting the form. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

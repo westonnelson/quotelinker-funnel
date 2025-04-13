@@ -159,22 +159,42 @@ const trackEvent = async (eventName: string, eventData: Record<string, unknown>)
 // Main submission endpoint
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const submissionData = body
+    const submissionData = await request.json()
+    
+    // Validate required fields
+    const requiredFields = [
+      'firstName',
+      'lastName',
+      'email',
+      'phone',
+      'dateOfBirth',
+      'gender',
+      'insuranceType',
+      'coverageAmount',
+      'termLength'
+    ]
+
+    const missingFields = requiredFields.filter(field => !submissionData[field])
+    if (missingFields.length > 0) {
+      return NextResponse.json({
+        success: false,
+        error: `Missing required fields: ${missingFields.join(', ')}`
+      }, { status: 400, headers: corsHeaders })
+    }
     
     // Prepare lead data matching the exact table structure
     const data: LeadData = {
-      first_name: submissionData.firstName || '',
-      last_name: submissionData.lastName || '',
-      email: submissionData.email || '',
-      phone: submissionData.phone || '',
-      date_of_birth: submissionData.dateOfBirth || '',
-      gender: submissionData.gender || '',
-      insurance_type: submissionData.insuranceType || '',
-      coverage_amount: submissionData.coverageAmount || '',
-      term_length: submissionData.termLength || '',
-      tobacco_use: submissionData.tobaccoUse || '',
-      source: submissionData.source || ''
+      first_name: submissionData.firstName,
+      last_name: submissionData.lastName,
+      email: submissionData.email,
+      phone: submissionData.phone,
+      date_of_birth: submissionData.dateOfBirth,
+      gender: submissionData.gender,
+      insurance_type: submissionData.insuranceType,
+      coverage_amount: submissionData.coverageAmount,
+      term_length: submissionData.termLength,
+      tobacco_use: submissionData.tobaccoUse || 'no',
+      source: submissionData.source || 'term_life_quote_form'
     }
 
     // Insert into Supabase
@@ -191,56 +211,71 @@ export async function POST(request: Request) {
       }, { status: 500, headers: corsHeaders })
     }
 
-    // Send notification email to admin
-    await sendEmail(
-      process.env.EMAIL_TO!,
-      'New Quote Request',
-      `
-        <h2>New Quote Request Received</h2>
-        <p><strong>Name:</strong> ${data.first_name} ${data.last_name}</p>
-        <p><strong>Email:</strong> ${data.email}</p>
-        <p><strong>Phone:</strong> ${data.phone}</p>
-        <p><strong>Date of Birth:</strong> ${data.date_of_birth}</p>
-        <p><strong>Gender:</strong> ${data.gender}</p>
-        <p><strong>Insurance Type:</strong> ${data.insurance_type}</p>
-        <p><strong>Coverage Amount:</strong> $${data.coverage_amount}</p>
-        <p><strong>Term Length:</strong> ${data.term_length} years</p>
-        <p><strong>Tobacco Use:</strong> ${data.tobacco_use}</p>
-        <p><strong>Source:</strong> ${data.source}</p>
-      `
-    )
-
-    // Send confirmation email to lead
-    if (data.email) {
+    try {
+      // Send notification email to admin
       await sendEmail(
-        data.email,
-        'Your Quote Request Has Been Received',
+        process.env.EMAIL_TO!,
+        'New Quote Request',
         `
-          <h2>Thank You for Your Quote Request</h2>
-          <p>Dear ${data.first_name},</p>
-          <p>We have received your quote request and will be in touch shortly with personalized options for your life insurance coverage.</p>
-          <p>Here's a summary of your request:</p>
-          <ul>
-            <li>Insurance Type: ${data.insurance_type}</li>
-            <li>Coverage Amount: $${data.coverage_amount}</li>
-            <li>Term Length: ${data.term_length} years</li>
-          </ul>
-          <p>If you have any questions, please contact us at ${process.env.EMAIL_FROM}.</p>
-          <p>Best regards,<br>The QuoteLinker Team</p>
+          <h2>New Quote Request Received</h2>
+          <p><strong>Name:</strong> ${data.first_name} ${data.last_name}</p>
+          <p><strong>Email:</strong> ${data.email}</p>
+          <p><strong>Phone:</strong> ${data.phone}</p>
+          <p><strong>Date of Birth:</strong> ${data.date_of_birth}</p>
+          <p><strong>Gender:</strong> ${data.gender}</p>
+          <p><strong>Insurance Type:</strong> ${data.insurance_type}</p>
+          <p><strong>Coverage Amount:</strong> $${data.coverage_amount}</p>
+          <p><strong>Term Length:</strong> ${data.term_length} years</p>
+          <p><strong>Tobacco Use:</strong> ${data.tobacco_use}</p>
+          <p><strong>Source:</strong> ${data.source}</p>
         `
       )
+
+      // Send confirmation email to lead
+      if (data.email) {
+        await sendEmail(
+          data.email,
+          'Your Quote Request Has Been Received',
+          `
+            <h2>Thank You for Your Quote Request</h2>
+            <p>Dear ${data.first_name},</p>
+            <p>We have received your quote request and will be in touch shortly with personalized options for your life insurance coverage.</p>
+            <p>Here's a summary of your request:</p>
+            <ul>
+              <li>Insurance Type: ${data.insurance_type}</li>
+              <li>Coverage Amount: $${data.coverage_amount}</li>
+              <li>Term Length: ${data.term_length} years</li>
+            </ul>
+            <p>If you have any questions, please contact us at ${process.env.EMAIL_FROM}.</p>
+            <p>Best regards,<br>The QuoteLinker Team</p>
+          `
+        )
+      }
+    } catch (emailError) {
+      console.error('Error sending emails:', emailError)
+      // Don't fail the request if email sending fails
     }
 
-    // Send to Zapier for HubSpot integration
-    await sendToZapier(data)
+    try {
+      // Send to Zapier for HubSpot integration
+      await sendToZapier(data)
+    } catch (zapierError) {
+      console.error('Error sending to Zapier:', zapierError)
+      // Don't fail the request if Zapier integration fails
+    }
 
-    // Track submission in GA4
-    await trackEvent('quote_submitted', {
-      source: data.source,
-      insurance_type: data.insurance_type,
-      coverage_amount: data.coverage_amount,
-      term_length: data.term_length
-    })
+    try {
+      // Track submission in GA4
+      await trackEvent('quote_submitted', {
+        source: data.source,
+        insurance_type: data.insurance_type,
+        coverage_amount: data.coverage_amount,
+        term_length: data.term_length
+      })
+    } catch (trackingError) {
+      console.error('Error tracking event:', trackingError)
+      // Don't fail the request if tracking fails
+    }
 
     return NextResponse.json({
       success: true,
@@ -252,7 +287,7 @@ export async function POST(request: Request) {
     console.error('Error processing quote request:', error)
     return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error'
+      error: error instanceof Error ? error.message : 'Unknown error processing quote request'
     }, { status: 500, headers: corsHeaders })
   }
 } 
