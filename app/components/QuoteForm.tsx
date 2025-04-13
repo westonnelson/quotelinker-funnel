@@ -5,6 +5,14 @@ import { useRouter } from 'next/navigation'
 import { Tooltip } from 'react-tooltip'
 import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline'
 
+declare global {
+  interface Window {
+    hubspot?: {
+      track: (event: string, properties: Record<string, any>) => void;
+    };
+  }
+}
+
 interface FormData {
   firstName: string
   lastName: string
@@ -133,7 +141,7 @@ export default function QuoteForm() {
         window.gtag('event', 'form_submission', {
           event_category: 'quote_request',
           event_label: 'quote_form',
-          value: formData.coverageAmount
+          value: parseInt(formData.coverageAmount, 10)
         })
       }
 

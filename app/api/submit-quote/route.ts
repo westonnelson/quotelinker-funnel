@@ -46,8 +46,14 @@ export async function POST(request: Request) {
       .select()
 
     if (supabaseError) {
-      console.error('Supabase error:', supabaseError)
-      throw new Error('Failed to save lead data')
+      console.error('Supabase error:', {
+        error: supabaseError,
+        message: supabaseError.message,
+        details: supabaseError.details,
+        hint: supabaseError.hint,
+        code: supabaseError.code
+      })
+      throw new Error(`Failed to save lead data: ${supabaseError.message}`)
     }
 
     console.log('Successfully saved to Supabase:', supabaseData)
@@ -66,7 +72,12 @@ export async function POST(request: Request) {
         })
         
         if (!zapierResponse.ok) {
-          console.error('Zapier webhook error:', await zapierResponse.text())
+          const errorText = await zapierResponse.text()
+          console.error('Zapier webhook error:', {
+            status: zapierResponse.status,
+            statusText: zapierResponse.statusText,
+            error: errorText
+          })
         } else {
           console.log('Successfully sent to Zapier webhook')
         }
@@ -100,7 +111,10 @@ export async function POST(request: Request) {
         })
         console.log('Successfully sent notification email:', emailResult)
       } catch (emailError) {
-        console.error('Email notification error:', emailError)
+        console.error('Email notification error:', {
+          error: emailError,
+          message: emailError instanceof Error ? emailError.message : String(emailError)
+        })
         // Don't throw here, continue with response
       }
     }
@@ -112,7 +126,11 @@ export async function POST(request: Request) {
     })
 
   } catch (error) {
-    console.error('API route error:', error)
+    console.error('API route error:', {
+      error,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined
+    })
     return NextResponse.json(
       { 
         success: false, 
