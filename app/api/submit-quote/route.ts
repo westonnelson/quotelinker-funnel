@@ -81,33 +81,6 @@ export async function POST(request: Request) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
     console.log('Supabase client created')
 
-    // Check if leads table exists
-    console.log('Checking if leads table exists...')
-    const { error: tableError } = await supabase
-      .from('leads')
-      .select('*')
-      .limit(1)
-
-    if (tableError) {
-      console.log('Leads table does not exist, attempting to create it...')
-      console.log('Table error:', tableError)
-
-      // Try to create the table using the stored procedure
-      const { error: createError } = await supabase.rpc('create_leads_table')
-      if (createError) {
-        console.error('Error creating leads table:', {
-          message: createError.message,
-          details: createError.details,
-          hint: createError.hint,
-          code: createError.code
-        })
-        throw createError
-      }
-      console.log('Leads table created successfully')
-    } else {
-      console.log('Leads table exists')
-    }
-
     const formData = await request.json()
     console.log('Received form data:', formData)
 
