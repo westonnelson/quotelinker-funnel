@@ -1,130 +1,108 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { Resend } from 'resend'
 
-if (!process.env.SUPABASE_URL) {
-  throw new Error('SUPABASE_URL is required')
-}
-
-if (!process.env.SUPABASE_SERVICE_KEY) {
-  throw new Error('SUPABASE_SERVICE_KEY is required')
-}
-
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const zapierWebhookUrl = process.env.ZAPIER_WEBHOOK_URL
+const resendApiKey = process.env.RESEND_API_KEY
 
 export async function POST(request: Request) {
   try {
-    console.log('Starting quote submission process...')
+    // Validate environment variables
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error('Missing Supabase configuration:', { supabaseUrl, supabaseAnonKey })
+      throw new Error('Missing Supabase configuration')
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseAnonKey)
     const data = await request.json()
-    
-    // Store lead in Supabase
-    console.log('Storing lead in Supabase...')
-    const { error: supabaseError } = await supabase
+    console.log('Received form data:', data)
+
+    // Insert into Supabase
+    const { data: supabaseData, error: supabaseError } = await supabase
       .from('leads')
       .insert([{
-        first_name: data.firstName,
-        last_name: data.lastName,
-        email: data.email,
-        phone: data.phone,
-        age: parseInt(data.age),
-        gender: data.gender,
-        health_status: data.healthStatus,
-        coverage_amount: parseInt(data.coverageAmount),
-        term_length: parseInt(data.termLength),
-        tobacco_use: data.tobaccoUse,
-        occupation: data.occupation,
-        annual_income: data.annualIncome,
-        status: 'new',
-        created_at: new Date().toISOString()
+        ...data,
+        created_at: new Date().toISOString(),
+        source: 'term_life_quote_form'
       }])
+      .select()
 
     if (supabaseError) {
       console.error('Supabase error:', supabaseError)
-      throw supabaseError
+      throw new Error('Failed to save lead data')
     }
-    console.log('Successfully stored lead in Supabase')
 
-    // Send to HubSpot via Zapier
-    if (process.env.ZAPIER_WEBHOOK_URL) {
-      console.log('Sending data to HubSpot via Zapier...')
-      const hubspotData = {
-        fields: [
-          { name: 'firstname', value: data.firstName },
-          { name: 'lastname', value: data.lastName },
-          { name: 'email', value: data.email },
-          { name: 'phone', value: data.phone },
-          { name: 'age', value: data.age },
-          { name: 'gender', value: data.gender },
-          { name: 'health_status', value: data.healthStatus },
-          { name: 'coverage_amount', value: data.coverageAmount },
-          { name: 'term_length', value: data.termLength },
-          { name: 'tobacco_use', value: data.tobaccoUse },
-          { name: 'occupation', value: data.occupation },
-          { name: 'annual_income', value: data.annualIncome }
-        ],
-        context: {
-          pageUri: 'https://quotelinker.com/term-life',
-          pageName: 'Term Life Insurance Quote'
+    console.log('Successfully saved to Supabase:', supabaseData)
+
+    // Send to HubSpot via Zapier if configured
+    if (zapierWebhookUrl) {
+      try {
+        const zapierResponse = await fetch(zapierWebhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...data,
+            source: 'term_life_quote_form',
+            timestamp: new Date().toISOString()
+          })
+        })
+        
+        if (!zapierResponse.ok) {
+          console.error('Zapier webhook error:', await zapierResponse.text())
+        } else {
+          console.log('Successfully sent to Zapier webhook')
         }
-      }
-
-      const zapierResponse = await fetch(process.env.ZAPIER_WEBHOOK_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(hubspotData)
-      })
-
-      if (!zapierResponse.ok) {
-        const errorText = await zapierResponse.text()
-        console.error('Failed to send to Zapier:', errorText)
-      } else {
-        console.log('Successfully sent data to HubSpot via Zapier')
+      } catch (zapierError) {
+        console.error('Zapier webhook error:', zapierError)
+        // Don't throw here, continue with other operations
       }
     }
 
-    // Send notification email
-    if (process.env.RESEND_API_KEY) {
-      console.log('Sending notification email...')
-      const emailData = {
-        from: process.env.EMAIL_FROM,
-        to: process.env.EMAIL_TO,
-        subject: 'New Quote Request',
-        html: `
-          <h2>New Quote Request</h2>
-          <p><strong>Name:</strong> ${data.firstName} ${data.lastName}</p>
-          <p><strong>Email:</strong> ${data.email}</p>
-          <p><strong>Phone:</strong> ${data.phone}</p>
-          <p><strong>Coverage Amount:</strong> $${parseInt(data.coverageAmount).toLocaleString()}</p>
-          <p><strong>Term Length:</strong> ${data.termLength} Years</p>
-          <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
-        `
-      }
-
-      const emailResponse = await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(emailData)
-      })
-
-      if (!emailResponse.ok) {
-        const errorText = await emailResponse.text()
-        console.error('Failed to send email:', errorText)
-      } else {
-        console.log('Successfully sent notification email')
+    // Send notification email if Resend is configured
+    if (resendApiKey) {
+      try {
+        const resend = new Resend(resendApiKey)
+        const emailResult = await resend.emails.send({
+          from: process.env.EMAIL_FROM || 'notifications@quotelinker.com',
+          to: process.env.EMAIL_TO || 'admin@quotelinker.com',
+          subject: 'New Quote Request',
+          html: `
+            <h1>New Quote Request</h1>
+            <p>Name: ${data.firstName} ${data.lastName}</p>
+            <p>Email: ${data.email}</p>
+            <p>Phone: ${data.phone}</p>
+            <p>Age: ${data.age}</p>
+            <p>Gender: ${data.gender}</p>
+            <p>Health Status: ${data.healthStatus}</p>
+            <p>Coverage Amount: $${data.coverageAmount}</p>
+            <p>Term Length: ${data.termLength} years</p>
+            <p>Source: Term Life Quote Form</p>
+            <p>Timestamp: ${new Date().toISOString()}</p>
+          `
+        })
+        console.log('Successfully sent notification email:', emailResult)
+      } catch (emailError) {
+        console.error('Email notification error:', emailError)
+        // Don't throw here, continue with response
       }
     }
 
-    console.log('Quote submission process completed successfully')
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Quote request submitted successfully',
+      data: supabaseData
+    })
+
   } catch (error) {
-    console.error('Form submission error:', error)
+    console.error('API route error:', error)
     return NextResponse.json(
-      { error: 'Failed to process quote request' },
+      { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Internal server error',
+        details: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     )
   }

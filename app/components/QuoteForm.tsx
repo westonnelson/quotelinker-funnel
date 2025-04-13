@@ -111,29 +111,50 @@ export default function QuoteForm() {
     if (!validateStep(currentStep)) return
 
     setLoading(true)
+    setError('')
+    
     try {
+      console.log('Submitting form data:', formData)
       const response = await fetch('/api/submit-quote', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       })
 
-      if (!response.ok) throw new Error('Submission failed')
+      const result = await response.json()
+      console.log('API Response:', result)
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Submission failed')
+      }
       
       // Track form submission
       if (typeof window !== 'undefined' && window.gtag) {
         window.gtag('event', 'form_submission', {
           event_category: 'quote_request',
-          event_label: 'quote_form'
+          event_label: 'quote_form',
+          value: formData.coverageAmount
         })
       }
 
+      // Track HubSpot event if available
+      if (typeof window !== 'undefined' && window.hubspot) {
+        window.hubspot.track('Quote Request Submitted', {
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          email: formData.email,
+          coverageAmount: formData.coverageAmount,
+          termLength: formData.termLength
+        })
+      }
+
+      // Redirect to thank you page
       router.push('/thank-you')
     } catch (err) {
-      setError('Something went wrong. Please try again.')
       console.error('Form submission error:', err)
+      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
+      setLoading(false)
     }
-    setLoading(false)
   }
 
   return (
