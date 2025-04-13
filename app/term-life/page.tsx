@@ -4,6 +4,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
+declare global {
+  interface Window {
+    _hsq: any[]
+  }
+}
+
 export default function TermLifePage() {
   const router = useRouter()
   const [formData, setFormData] = useState({
@@ -26,6 +32,7 @@ export default function TermLifePage() {
     setError('')
 
     try {
+      // Submit to Supabase
       const { error: supabaseError } = await supabase
         .from('leads')
         .insert([{
@@ -36,6 +43,36 @@ export default function TermLifePage() {
         }])
 
       if (supabaseError) throw supabaseError
+
+      // Track form submission in HubSpot
+      if (typeof window !== 'undefined' && window._hsq) {
+        window._hsq.push(['identify', {
+          email: formData.email,
+          firstname: formData.first_name,
+          lastname: formData.last_name,
+          phone: formData.phone,
+          age: formData.age,
+          gender: formData.gender,
+          coverage_amount: formData.coverage_amount,
+          term_length: formData.term_length,
+          health_status: formData.health_status
+        }]);
+        
+        window._hsq.push(['trackEvent', {
+          id: 'term_life_quote_submission',
+          value: parseInt(formData.coverage_amount)
+        }]);
+      }
+
+      // Track conversion in Google Analytics
+      if (typeof window !== 'undefined' && window.dataLayer) {
+        window.dataLayer.push({
+          'event': 'form_submission',
+          'form_name': 'term_life_quote',
+          'conversion_value': parseInt(formData.coverage_amount)
+        });
+      }
+
       router.push('/thank-you')
     } catch (err) {
       setError('Something went wrong. Please try again.')
