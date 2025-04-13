@@ -3,9 +3,9 @@
 import Link from 'next/link'
 import { LinkIcon } from '@heroicons/react/24/solid'
 import { 
-  FacebookIcon, 
-  TwitterIcon, 
-  LinkedInIcon 
+  FaceSmileIcon,
+  ChatBubbleLeftIcon,
+  UserGroupIcon 
 } from '@heroicons/react/24/outline'
 
 export default function Footer() {
@@ -24,15 +24,15 @@ export default function Footer() {
             <div className="mt-4 flex space-x-4">
               <a href="#" className="text-gray-400 hover:text-[#00F2F2]">
                 <span className="sr-only">Facebook</span>
-                <FacebookIcon className="h-6 w-6" />
+                <FaceSmileIcon className="h-6 w-6" />
               </a>
               <a href="#" className="text-gray-400 hover:text-[#00F2F2]">
                 <span className="sr-only">Twitter</span>
-                <TwitterIcon className="h-6 w-6" />
+                <ChatBubbleLeftIcon className="h-6 w-6" />
               </a>
               <a href="#" className="text-gray-400 hover:text-[#00F2F2]">
                 <span className="sr-only">LinkedIn</span>
-                <LinkedInIcon className="h-6 w-6" />
+                <UserGroupIcon className="h-6 w-6" />
               </a>
             </div>
           </div>
