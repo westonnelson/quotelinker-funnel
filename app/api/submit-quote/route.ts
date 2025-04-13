@@ -7,14 +7,14 @@ interface LeadData {
   last_name: string;
   email: string;
   phone: string;
-  age: string;
+  date_of_birth: string;
   gender: string;
-  health_status: string;
+  height: string;
+  weight: string;
+  insurance_type: string;
   coverage_amount: string;
   term_length: string;
   tobacco_use: string;
-  occupation: string;
-  annual_income: string;
   source: string;
 }
 
@@ -110,14 +110,14 @@ const sendToZapier = async (leadData: LeadData) => {
         lastName: leadData.last_name,
         email: leadData.email,
         phone: leadData.phone,
-        age: leadData.age,
+        age: '',
         gender: leadData.gender,
-        healthStatus: leadData.health_status,
+        healthStatus: '',
         coverageAmount: leadData.coverage_amount,
         termLength: leadData.term_length,
         tobaccoUse: leadData.tobacco_use,
         occupation: leadData.occupation,
-        annualIncome: leadData.annual_income,
+        annualIncome: '',
         source: leadData.source
       }
     }
@@ -161,7 +161,7 @@ const trackEvent = async (eventName: string, eventData: Record<string, unknown>)
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const submissionData = body.submissionData || body
+    const submissionData = body
     
     // Prepare lead data matching the exact table structure
     const leadData: LeadData = {
@@ -169,15 +169,15 @@ export async function POST(request: Request) {
       last_name: submissionData.lastName || '',
       email: submissionData.email || '',
       phone: submissionData.phone || '',
-      age: submissionData.age || '',
+      date_of_birth: submissionData.dateOfBirth || '',
       gender: submissionData.gender || '',
-      health_status: submissionData.healthStatus || '',
-      coverage_amount: submissionData.coverage || '',
+      height: submissionData.height || '',
+      weight: submissionData.weight || '',
+      insurance_type: submissionData.insuranceType || '',
+      coverage_amount: submissionData.coverageAmount || '',
       term_length: submissionData.termLength || '',
       tobacco_use: submissionData.tobaccoUse || 'no',
-      occupation: submissionData.occupation || 'Not Provided',
-      annual_income: submissionData.annualIncome || '',
-      source: body.funnelType || 'term_life_quote_form'
+      source: submissionData.funnelType || 'term_life_quote_form'
     }
 
     // Insert into Supabase
@@ -203,14 +203,14 @@ export async function POST(request: Request) {
         <p><strong>Name:</strong> ${leadData.first_name} ${leadData.last_name}</p>
         <p><strong>Email:</strong> ${leadData.email}</p>
         <p><strong>Phone:</strong> ${leadData.phone}</p>
-        <p><strong>Age:</strong> ${leadData.age}</p>
+        <p><strong>Date of Birth:</strong> ${leadData.date_of_birth}</p>
         <p><strong>Gender:</strong> ${leadData.gender}</p>
-        <p><strong>Health Status:</strong> ${leadData.health_status}</p>
-        <p><strong>Coverage Amount:</strong> ${leadData.coverage_amount}</p>
-        <p><strong>Term Length:</strong> ${leadData.term_length}</p>
+        <p><strong>Height:</strong> ${leadData.height} inches</p>
+        <p><strong>Weight:</strong> ${leadData.weight} lbs</p>
+        <p><strong>Insurance Type:</strong> ${leadData.insurance_type}</p>
+        <p><strong>Coverage Amount:</strong> $${leadData.coverage_amount}</p>
+        <p><strong>Term Length:</strong> ${leadData.term_length} years</p>
         <p><strong>Tobacco Use:</strong> ${leadData.tobacco_use}</p>
-        <p><strong>Occupation:</strong> ${leadData.occupation}</p>
-        <p><strong>Annual Income:</strong> ${leadData.annual_income}</p>
         <p><strong>Source:</strong> ${leadData.source}</p>
       `
     )
@@ -224,18 +224,31 @@ export async function POST(request: Request) {
           <h2>Thank You for Your Quote Request</h2>
           <p>Dear ${leadData.first_name},</p>
           <p>We have received your quote request and will be in touch shortly with personalized options for your life insurance coverage.</p>
-          <p>If you have any questions, please contact us at ${process.env.EMAIL_TO}.</p>
+          <p>Here's a summary of your request:</p>
+          <ul>
+            <li>Insurance Type: ${leadData.insurance_type}</li>
+            <li>Coverage Amount: $${leadData.coverage_amount}</li>
+            <li>Term Length: ${leadData.term_length} years</li>
+          </ul>
+          <p>If you have any questions, please contact us at ${process.env.EMAIL_FROM}.</p>
           <p>Best regards,<br>The QuoteLinker Team</p>
         `
       )
     }
 
     // Send to Zapier for HubSpot integration
-    await sendToZapier(leadData)
+    await sendToZapier({
+      ...leadData,
+      age: '', // Keeping this for backward compatibility
+      health_status: '', // Keeping this for backward compatibility
+      occupation: 'Not Provided',
+      annual_income: ''
+    })
 
     // Track submission in GA4
     await trackEvent('quote_submitted', {
       source: leadData.source,
+      insurance_type: leadData.insurance_type,
       coverage_amount: leadData.coverage_amount,
       term_length: leadData.term_length
     })
