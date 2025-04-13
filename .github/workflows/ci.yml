@@ -40,11 +40,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Debug Node Modules
+        run: |
+          echo "Node modules directory contents:"
+          ls -la node_modules
+          echo "Next.js version:"
+          npx next --version
+
       - name: Run linting
         run: npm run lint
 
       - name: Build
-        run: npm run build
+        run: npm run build --verbose
         env:
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -66,6 +73,10 @@ jobs:
           echo "EMAIL_FROM is set: ${{ secrets.EMAIL_FROM != '' }}"
           echo "EMAIL_TO is set: ${{ secrets.EMAIL_TO != '' }}"
           echo "ZAPIER_WEBHOOK_URL is set: ${{ secrets.ZAPIER_WEBHOOK_URL != '' }}"
+          
+          # Test Vercel CLI
+          echo "Testing Vercel CLI..."
+          npx vercel --version || echo "Vercel CLI not available"
 
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
