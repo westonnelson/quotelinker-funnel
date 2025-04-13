@@ -66,6 +66,12 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     console.log('Starting submit-quote API route')
+    console.log('Environment variables:', {
+      hasSupabaseUrl: !!supabaseUrl,
+      hasSupabaseKey: !!supabaseAnonKey,
+      hasZapierUrl: !!zapierWebhookUrl,
+      hasResendKey: !!resendApiKey
+    })
     
     if (!supabaseUrl || !supabaseAnonKey) {
       throw new Error('Missing Supabase configuration')
