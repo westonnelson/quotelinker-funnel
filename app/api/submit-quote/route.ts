@@ -10,17 +10,11 @@ interface LeadData {
   phone: string;
   date_of_birth: string;
   gender: string;
-  height: string;
-  weight: string;
   insurance_type: string;
   coverage_amount: string;
   term_length: string;
   tobacco_use: string;
   source: string;
-  occupation?: string;
-  age?: string;
-  health_status?: string;
-  annual_income?: string;
 }
 
 // Initialize Supabase client with service role key for admin operations
@@ -121,7 +115,7 @@ const sendToZapier = async (leadData: LeadData) => {
         coverageAmount: leadData.coverage_amount,
         termLength: leadData.term_length,
         tobaccoUse: leadData.tobacco_use,
-        occupation: leadData.occupation,
+        occupation: 'Not Provided',
         annualIncome: '',
         source: leadData.source
       }
@@ -169,26 +163,24 @@ export async function POST(request: Request) {
     const submissionData = body
     
     // Prepare lead data matching the exact table structure
-    const leadData: LeadData = {
+    const data: LeadData = {
       first_name: submissionData.firstName || '',
       last_name: submissionData.lastName || '',
       email: submissionData.email || '',
       phone: submissionData.phone || '',
       date_of_birth: submissionData.dateOfBirth || '',
       gender: submissionData.gender || '',
-      height: submissionData.height || '',
-      weight: submissionData.weight || '',
       insurance_type: submissionData.insuranceType || '',
       coverage_amount: submissionData.coverageAmount || '',
       term_length: submissionData.termLength || '',
-      tobacco_use: submissionData.tobaccoUse || 'no',
-      source: submissionData.funnelType || 'term_life_quote_form'
+      tobacco_use: submissionData.tobaccoUse || '',
+      source: submissionData.source || ''
     }
 
     // Insert into Supabase
-    const { data, error: insertError } = await supabase
+    const { data: insertData, error: insertError } = await supabase
       .from('leads')
-      .insert([leadData])
+      .insert([data])
       .select()
 
     if (insertError) {
@@ -205,35 +197,33 @@ export async function POST(request: Request) {
       'New Quote Request',
       `
         <h2>New Quote Request Received</h2>
-        <p><strong>Name:</strong> ${leadData.first_name} ${leadData.last_name}</p>
-        <p><strong>Email:</strong> ${leadData.email}</p>
-        <p><strong>Phone:</strong> ${leadData.phone}</p>
-        <p><strong>Date of Birth:</strong> ${leadData.date_of_birth}</p>
-        <p><strong>Gender:</strong> ${leadData.gender}</p>
-        <p><strong>Height:</strong> ${leadData.height} inches</p>
-        <p><strong>Weight:</strong> ${leadData.weight} lbs</p>
-        <p><strong>Insurance Type:</strong> ${leadData.insurance_type}</p>
-        <p><strong>Coverage Amount:</strong> $${leadData.coverage_amount}</p>
-        <p><strong>Term Length:</strong> ${leadData.term_length} years</p>
-        <p><strong>Tobacco Use:</strong> ${leadData.tobacco_use}</p>
-        <p><strong>Source:</strong> ${leadData.source}</p>
+        <p><strong>Name:</strong> ${data.first_name} ${data.last_name}</p>
+        <p><strong>Email:</strong> ${data.email}</p>
+        <p><strong>Phone:</strong> ${data.phone}</p>
+        <p><strong>Date of Birth:</strong> ${data.date_of_birth}</p>
+        <p><strong>Gender:</strong> ${data.gender}</p>
+        <p><strong>Insurance Type:</strong> ${data.insurance_type}</p>
+        <p><strong>Coverage Amount:</strong> $${data.coverage_amount}</p>
+        <p><strong>Term Length:</strong> ${data.term_length} years</p>
+        <p><strong>Tobacco Use:</strong> ${data.tobacco_use}</p>
+        <p><strong>Source:</strong> ${data.source}</p>
       `
     )
 
     // Send confirmation email to lead
-    if (leadData.email) {
+    if (data.email) {
       await sendEmail(
-        leadData.email,
+        data.email,
         'Your Quote Request Has Been Received',
         `
           <h2>Thank You for Your Quote Request</h2>
-          <p>Dear ${leadData.first_name},</p>
+          <p>Dear ${data.first_name},</p>
           <p>We have received your quote request and will be in touch shortly with personalized options for your life insurance coverage.</p>
           <p>Here's a summary of your request:</p>
           <ul>
-            <li>Insurance Type: ${leadData.insurance_type}</li>
-            <li>Coverage Amount: $${leadData.coverage_amount}</li>
-            <li>Term Length: ${leadData.term_length} years</li>
+            <li>Insurance Type: ${data.insurance_type}</li>
+            <li>Coverage Amount: $${data.coverage_amount}</li>
+            <li>Term Length: ${data.term_length} years</li>
           </ul>
           <p>If you have any questions, please contact us at ${process.env.EMAIL_FROM}.</p>
           <p>Best regards,<br>The QuoteLinker Team</p>
@@ -242,26 +232,20 @@ export async function POST(request: Request) {
     }
 
     // Send to Zapier for HubSpot integration
-    await sendToZapier({
-      ...leadData,
-      age: '', // Keeping this for backward compatibility
-      health_status: '', // Keeping this for backward compatibility
-      occupation: 'Not Provided',
-      annual_income: ''
-    })
+    await sendToZapier(data)
 
     // Track submission in GA4
     await trackEvent('quote_submitted', {
-      source: leadData.source,
-      insurance_type: leadData.insurance_type,
-      coverage_amount: leadData.coverage_amount,
-      term_length: leadData.term_length
+      source: data.source,
+      insurance_type: data.insurance_type,
+      coverage_amount: data.coverage_amount,
+      term_length: data.term_length
     })
 
     return NextResponse.json({
       success: true,
       message: 'Quote request submitted successfully',
-      data
+      data: insertData
     }, { headers: corsHeaders })
 
   } catch (error) {

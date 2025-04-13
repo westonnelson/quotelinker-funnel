@@ -35,8 +35,6 @@ interface FormData {
   phone: string;
   dateOfBirth: string;
   gender: string;
-  height: string;
-  weight: string;
   tobaccoUse: string;
   funnelType?: string;
   utmSource?: string;
@@ -74,8 +72,6 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     phone: '',
     dateOfBirth: '',
     gender: '',
-    height: '',
-    weight: '',
     tobaccoUse: 'no',
     funnelType,
     utmSource,
@@ -90,11 +86,9 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     phone: 'Required to connect you with a licensed agent',
     age: 'Required to calculate accurate rates',
     gender: 'Required for accurate health assessment',
-    healthStatus: 'Helps determine the best coverage options',
     coverageAmount: 'Recommended: 10-12x your annual income',
     termLength: 'How long you need coverage',
-    tobaccoUse: 'Affects your rate calculation',
-    annualIncome: 'Helps recommend appropriate coverage'
+    tobaccoUse: 'Affects your rate calculation'
   }
 
   const validateField = (field: keyof FormData, value: string | undefined): string => {
@@ -115,10 +109,6 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
         return !value ? 'Date of birth is required' : '';
       case 'gender':
         return !value ? 'Gender is required' : '';
-      case 'height':
-        return !value ? 'Height is required' : '';
-      case 'weight':
-        return !value ? 'Weight is required' : '';
       case 'tobaccoUse':
         return !value ? 'Tobacco use status is required' : '';
       case 'insuranceType':
@@ -156,7 +146,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
       ? ['insuranceType', 'coverageAmount', 'termLength']
       : currentStep === 1
       ? ['firstName', 'lastName', 'email', 'phone']
-      : ['dateOfBirth', 'gender', 'height', 'weight', 'tobaccoUse'];
+      : ['dateOfBirth', 'gender', 'tobaccoUse'];
     
     const errors: Partial<Record<keyof FormData, string>> = {};
     stepFields.forEach(field => {
@@ -168,8 +158,12 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     });
 
     if (Object.keys(errors).length === 0) {
-      setCurrentStep(prev => prev + 1);
-      setValidationErrors({});
+      if (currentStep === 2) {
+        handleSubmit();
+      } else {
+        setCurrentStep(prev => prev + 1);
+        setValidationErrors({});
+      }
     } else {
       setValidationErrors(errors);
     }
@@ -180,8 +174,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     setError('')
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setIsSubmitting(true);
     setError('');
 
@@ -204,15 +197,17 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
         throw new Error('Failed to submit form');
       }
 
-      setShowSuccess(true);
       // Track form submission in Google Analytics
-      if (typeof window !== 'undefined' && (window as any).gtag) {
-        (window as any).gtag('event', 'form_submission', {
+      if (typeof window !== 'undefined' && window.gtag) {
+        window.gtag('event', 'form_submission', {
           event_category: 'Quote Form',
           event_label: formData.insuranceType,
           value: parseInt(formData.coverageAmount)
         });
       }
+
+      // Redirect to thank you page
+      router.push('/thank-you');
     } catch (err) {
       setError('An error occurred while submitting the form. Please try again.');
     } finally {
@@ -220,202 +215,130 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     }
   };
 
-  // Format phone number for display
-  const formatPhoneNumber = (value: string) => {
-    const digitsOnly = value.replace(/\D/g, '')
-    if (digitsOnly.length === 0) return ''
-    
-    if (digitsOnly.length <= 3) {
-      return `(${digitsOnly}`
-    } else if (digitsOnly.length <= 6) {
-      return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3)}`
-    } else {
-      return `(${digitsOnly.slice(0, 3)}) ${digitsOnly.slice(3, 6)}-${digitsOnly.slice(6, 10)}`
-    }
-  }
-
-  const validateStep = (step: number): Partial<Record<keyof FormData, string>> => {
-    const errors: Partial<Record<keyof FormData, string>> = {};
-    
-    if (step === 0) {
-      const stepFields: (keyof FormData)[] = ['insuranceType', 'coverageAmount', 'termLength'];
-      stepFields.forEach(field => {
-        const value = formData[field];
-        const error = validateField(field, value);
-        if (error) {
-          errors[field] = error;
-        }
-      });
-    } else if (step === 1) {
-      const stepFields: (keyof FormData)[] = ['firstName', 'lastName', 'email', 'phone'];
-      stepFields.forEach(field => {
-        const value = formData[field];
-        const error = validateField(field, value);
-        if (error) {
-          errors[field] = error;
-        }
-      });
-    } else if (step === 2) {
-      const stepFields: (keyof FormData)[] = ['dateOfBirth', 'gender', 'height', 'weight', 'tobaccoUse'];
-      stepFields.forEach(field => {
-        const value = formData[field];
-        const error = validateField(field, value);
-        if (error) {
-          errors[field] = error;
-        }
-      });
-    }
-    
-    return errors;
-  };
-
   return (
-    <div className="max-w-2xl mx-auto">
-      {/* Trust Signals */}
-      <div className="mb-8 grid grid-cols-3 gap-4 text-center">
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <div className="flex items-center justify-center mb-2">
-            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
+    <div className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8">
+      {/* Progress Steps */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between relative">
+          {['Coverage Details', 'Personal Info', 'Health Profile'].map((step, index) => (
+            <div key={step} className="flex flex-col items-center relative z-10">
+              <div 
+                className={`w-10 h-10 rounded-full flex items-center justify-center border-2 
+                  ${index <= currentStep ? 'bg-cyan-500 border-cyan-500 text-white' : 'bg-white border-gray-300 text-gray-500'}`}
+              >
+                {index + 1}
+              </div>
+              <span className={`mt-2 text-sm font-medium ${index <= currentStep ? 'text-cyan-500' : 'text-gray-500'}`}>
+                {step}
+              </span>
+            </div>
+          ))}
+          {/* Progress Bar */}
+          <div className="absolute top-5 left-0 h-0.5 bg-gray-200 w-full -z-10">
+            <div 
+              className="h-full bg-cyan-500 transition-all duration-300"
+              style={{ width: `${(currentStep / 2) * 100}%` }}
+            />
           </div>
-          <p className="text-sm font-medium text-gray-900">Licensed & Secure</p>
-          <p className="text-xs text-gray-600">HIPAA Compliant</p>
-        </div>
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <div className="flex items-center justify-center mb-2">
-            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          <p className="text-sm font-medium text-gray-900">2-Minute Quote</p>
-          <p className="text-xs text-gray-600">Fast & Easy Process</p>
-        </div>
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <div className="flex items-center justify-center mb-2">
-            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
-          <p className="text-sm font-medium text-gray-900">Instant Results</p>
-          <p className="text-xs text-gray-600">Compare Top Carriers</p>
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
-        {/* Progress Steps */}
-        <div className="mb-8">
-          <div className="flex justify-between mb-2">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  currentStep + 1 >= step ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-500'
-                }`}>
-                  {step}
-                </div>
-                {step < 3 && (
-                  <div className={`h-1 w-24 sm:w-32 ${
-                    currentStep + 1 > step ? 'bg-blue-600' : 'bg-gray-200'
-                  }`} />
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="flex justify-between text-sm text-gray-600">
-            <span>Coverage Details</span>
-            <span>Personal Info</span>
-            <span>Health Profile</span>
-          </div>
-        </div>
-
-        <div className="text-center mb-8">
-          <h2 className="text-3xl font-bold text-gray-900 mb-3">
-            {currentStep === 0 ? 'Find Your Best Rate' :
-             currentStep === 1 ? 'Tell Us About Yourself' :
-             'Almost Done!'}
-          </h2>
-          <p className="text-lg text-gray-600">
-            {currentStep === 0 ? 'Compare rates from top-rated insurance providers' :
-             currentStep === 1 ? 'Help us personalize your quote' :
-             'Just a few more details to get your quote'}
-          </p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {currentStep === 0 && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Insurance Type
-                </label>
-                <select
-                  value={formData.insuranceType}
-                  onChange={(e) => handleInputChange('insuranceType', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value="">Select insurance type</option>
-                  <option value="term">Term Life Insurance</option>
-                  <option value="whole">Whole Life Insurance</option>
-                  <option value="universal">Universal Life Insurance</option>
-                </select>
-                {validationErrors.insuranceType && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.insuranceType}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Coverage Amount
-                </label>
-                <select
-                  value={formData.coverageAmount}
-                  onChange={(e) => handleInputChange('coverageAmount', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value="">Select coverage amount</option>
-                  <option value="100000">$100,000</option>
-                  <option value="250000">$250,000</option>
-                  <option value="500000">$500,000</option>
-                  <option value="1000000">$1,000,000</option>
-                </select>
-                {validationErrors.coverageAmount && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.coverageAmount}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Term Length
-                </label>
-                <select
-                  value={formData.termLength}
-                  onChange={(e) => handleInputChange('termLength', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value="">Select term length</option>
-                  <option value="10">10 Years</option>
-                  <option value="20">20 Years</option>
-                  <option value="30">30 Years</option>
-                </select>
-                {validationErrors.termLength && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.termLength}</p>
-                )}
-              </div>
+      <div className="space-y-6">
+        {currentStep === 0 && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Insurance Type
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                  data-tooltip-id="insurance-type-tooltip"
+                />
+              </label>
+              <select
+                value={formData.insuranceType}
+                onChange={(e) => handleInputChange('insuranceType', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+              >
+                <option value="">Select Insurance Type</option>
+                <option value="term">Term Life Insurance</option>
+                <option value="whole">Whole Life Insurance</option>
+                <option value="universal">Universal Life Insurance</option>
+              </select>
+              {validationErrors.insuranceType && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.insuranceType}</p>
+              )}
             </div>
-          )}
 
-          {currentStep === 1 && (
-            <div className="space-y-6">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Coverage Amount
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                  data-tooltip-id="coverage-amount-tooltip"
+                />
+              </label>
+              <select
+                value={formData.coverageAmount}
+                onChange={(e) => handleInputChange('coverageAmount', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+              >
+                <option value="">Select Coverage Amount</option>
+                <option value="100000">$100,000</option>
+                <option value="250000">$250,000</option>
+                <option value="500000">$500,000</option>
+                <option value="750000">$750,000</option>
+                <option value="1000000">$1,000,000</option>
+                <option value="2000000">$2,000,000+</option>
+              </select>
+              {validationErrors.coverageAmount && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.coverageAmount}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Term Length
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                  data-tooltip-id="term-length-tooltip"
+                />
+              </label>
+              <select
+                value={formData.termLength}
+                onChange={(e) => handleInputChange('termLength', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+              >
+                <option value="">Select Term Length</option>
+                <option value="10">10 Years</option>
+                <option value="15">15 Years</option>
+                <option value="20">20 Years</option>
+                <option value="25">25 Years</option>
+                <option value="30">30 Years</option>
+              </select>
+              {validationErrors.termLength && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.termLength}</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {currentStep === 1 && (
+          <>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   First Name
+                  <QuestionMarkCircleIcon 
+                    className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                    data-tooltip-id="first-name-tooltip"
+                  />
                 </label>
                 <input
                   type="text"
                   value={formData.firstName}
                   onChange={(e) => handleInputChange('firstName', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Enter your first name"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="John"
                 />
                 {validationErrors.firstName && (
                   <p className="mt-1 text-sm text-red-600">{validationErrors.firstName}</p>
@@ -423,210 +346,178 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
                   Last Name
+                  <QuestionMarkCircleIcon 
+                    className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                    data-tooltip-id="last-name-tooltip"
+                  />
                 </label>
                 <input
                   type="text"
                   value={formData.lastName}
                   onChange={(e) => handleInputChange('lastName', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Enter your last name"
+                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                  placeholder="Doe"
                 />
                 {validationErrors.lastName && (
                   <p className="mt-1 text-sm text-red-600">{validationErrors.lastName}</p>
                 )}
               </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) => handleInputChange('email', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Enter your email"
-                />
-                {validationErrors.email && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone
-                </label>
-                <InputMask
-                  mask="(999) 999-9999"
-                  value={formData.phone}
-                  onChange={(e) => handlePhoneChange(e)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="(555) 555-5555"
-                />
-                {validationErrors.phone && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
-                )}
-              </div>
             </div>
-          )}
 
-          {currentStep === 2 && (
-            <div className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date of Birth
-                </label>
-                <input
-                  type="date"
-                  value={formData.dateOfBirth}
-                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Email
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                  data-tooltip-id="email-tooltip"
                 />
-                {validationErrors.dateOfBirth && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.dateOfBirth}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Gender
-                </label>
-                <select
-                  value={formData.gender}
-                  onChange={(e) => handleInputChange('gender', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value="">Select gender</option>
-                  <option value="male">Male</option>
-                  <option value="female">Female</option>
-                  <option value="other">Other</option>
-                </select>
-                {validationErrors.gender && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.gender}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Height (inches)
-                </label>
-                <input
-                  type="number"
-                  value={formData.height}
-                  onChange={(e) => handleInputChange('height', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Enter height in inches"
-                />
-                {validationErrors.height && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.height}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Weight (lbs)
-                </label>
-                <input
-                  type="number"
-                  value={formData.weight}
-                  onChange={(e) => handleInputChange('weight', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  placeholder="Enter weight in pounds"
-                />
-                {validationErrors.weight && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.weight}</p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tobacco Use
-                </label>
-                <select
-                  value={formData.tobaccoUse}
-                  onChange={(e) => handleInputChange('tobaccoUse', e.target.value)}
-                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                >
-                  <option value="">Select tobacco use status</option>
-                  <option value="no">No</option>
-                  <option value="yes">Yes</option>
-                </select>
-                {validationErrors.tobaccoUse && (
-                  <p className="mt-1 text-sm text-red-600">{validationErrors.tobaccoUse}</p>
-                )}
-              </div>
+              </label>
+              <input
+                type="email"
+                value={formData.email}
+                onChange={(e) => handleInputChange('email', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                placeholder="john@example.com"
+              />
+              {validationErrors.email && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+              )}
             </div>
-          )}
 
-          <div className="flex justify-between pt-6">
-            {currentStep > 0 && (
-              <button
-                type="button"
-                onClick={handleBack}
-                className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Phone
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                  data-tooltip-id="phone-tooltip"
+                />
+              </label>
+              <InputMask
+                mask="(999) 999-9999"
+                value={formData.phone}
+                onChange={handlePhoneChange}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                placeholder="(555) 555-5555"
+              />
+              {validationErrors.phone && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {currentStep === 2 && (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Date of Birth
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                  data-tooltip-id="dob-tooltip"
+                />
+              </label>
+              <input
+                type="date"
+                value={formData.dateOfBirth}
+                onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+              />
+              {validationErrors.dateOfBirth && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.dateOfBirth}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Gender
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                  data-tooltip-id="gender-tooltip"
+                />
+              </label>
+              <select
+                value={formData.gender}
+                onChange={(e) => handleInputChange('gender', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
               >
-                Back
-              </button>
-            )}
-            {currentStep < 2 ? (
-              <button
-                type="button"
-                onClick={handleNext}
-                className="ml-auto px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg hover:shadow-xl"
+                <option value="">Select Gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+              </select>
+              {validationErrors.gender && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.gender}</p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Tobacco Use
+                <QuestionMarkCircleIcon 
+                  className="inline-block w-4 h-4 ml-1 text-gray-400" 
+                  data-tooltip-id="tobacco-tooltip"
+                />
+              </label>
+              <select
+                value={formData.tobaccoUse}
+                onChange={(e) => handleInputChange('tobaccoUse', e.target.value)}
+                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
               >
-                Next
-              </button>
-            ) : (
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="ml-auto px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? 'Submitting...' : 'Get Your Quote'}
-              </button>
-            )}
+                <option value="no">No</option>
+                <option value="yes">Yes</option>
+              </select>
+              {validationErrors.tobaccoUse && (
+                <p className="mt-1 text-sm text-red-600">{validationErrors.tobaccoUse}</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-600">{error}</p>
           </div>
-        </form>
+        )}
 
-        {/* Social Proof */}
-        <div className="mt-8 pt-6 border-t border-gray-100">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="flex -space-x-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white" />
-                ))}
-              </div>
-              <p className="text-sm text-gray-600">
-                <span className="font-semibold">1,000+</span> customers helped this month
-              </p>
-            </div>
-            <div className="flex items-center">
-              <div className="flex text-yellow-400">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <svg key={i} className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                  </svg>
-                ))}
-              </div>
-              <p className="ml-2 text-sm text-gray-600">
-                <span className="font-semibold">4.9/5</span> average rating
-              </p>
-            </div>
-          </div>
+        <div className="flex justify-between mt-8">
+          {currentStep > 0 && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
+            >
+              Back
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleNext}
+            disabled={isSubmitting}
+            className={`${currentStep === 0 ? 'ml-auto' : ''} px-6 py-2 text-sm font-medium text-white bg-cyan-500 border border-transparent rounded-md shadow-sm hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {isSubmitting ? (
+              <span className="flex items-center">
+                <svg className="w-5 h-5 mr-3 -ml-1 animate-spin" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Processing...
+              </span>
+            ) : currentStep === 2 ? 'Get My Quote' : 'Next'}
+          </button>
         </div>
       </div>
 
-      {showSuccess && (
-        <div className="mt-8 p-6 bg-green-50 rounded-lg border border-green-200">
-          <h3 className="text-xl font-semibold text-green-800 mb-2">Thank You!</h3>
-          <p className="text-green-700">
-            Your information has been submitted successfully. A licensed insurance agent will contact you shortly to discuss your personalized quote.
-          </p>
-        </div>
-      )}
+      {/* Tooltips */}
+      {Object.entries(tooltips).map(([id, content]) => (
+        <ReactTooltip
+          key={id}
+          id={`${id}-tooltip`}
+          place="top"
+          content={content}
+        />
+      ))}
     </div>
-  )
+  );
 } 
