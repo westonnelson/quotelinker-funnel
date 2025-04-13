@@ -1,3 +1,44 @@
 @tailwind base;
 @tailwind components;
-@tailwind utilities; 
+@tailwind utilities;
+
+:root {
+  --primary: #00F2F2;
+  --primary-dark: #00D6D6;
+  --primary-light: #80FFFF;
+  --background: #F8FAFB;
+}
+
+body {
+  background-color: var(--background);
+}
+
+.brand-gradient {
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+}
+
+.neon-glow {
+  box-shadow: 0 0 15px rgba(0, 242, 242, 0.3);
+}
+
+.hover-neon:hover {
+  box-shadow: 0 0 20px rgba(0, 242, 242, 0.4);
+  transform: translateY(-1px);
+  transition: all 0.2s ease;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+.float-animation {
+  animation: float 6s ease-in-out infinite;
+} 

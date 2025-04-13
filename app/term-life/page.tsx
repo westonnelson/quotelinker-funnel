@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
+import Image from 'next/image'
 
 declare global {
   interface Window {
     _hsq: any[]
+    dataLayer: any[]
   }
 }
 
@@ -56,12 +58,12 @@ export default function TermLifePage() {
           coverage_amount: formData.coverage_amount,
           term_length: formData.term_length,
           health_status: formData.health_status
-        }]);
+        }])
         
         window._hsq.push(['trackEvent', {
           id: 'term_life_quote_submission',
           value: parseInt(formData.coverage_amount)
-        }]);
+        }])
       }
 
       // Track conversion in Google Analytics
@@ -70,7 +72,7 @@ export default function TermLifePage() {
           'event': 'form_submission',
           'form_name': 'term_life_quote',
           'conversion_value': parseInt(formData.coverage_amount)
-        });
+        })
       }
 
       router.push('/thank-you')
@@ -83,18 +85,44 @@ export default function TermLifePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
+    <main className="min-h-screen bg-gradient-to-b from-[#F8FAFB] to-white py-12">
       <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Get Your Term Life Insurance Quote
+          <div className="flex justify-center mb-6">
+            <div className="relative w-16 h-16 float-animation">
+              <Image
+                src="/q-logo.png"
+                alt="QuoteLinker"
+                fill
+                className="object-contain"
+              />
+            </div>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
+            Get Your <span className="text-[#00F2F2]">Term Life</span> Quote
           </h1>
-          <p className="text-xl text-gray-600">
-            Protect your loved ones with affordable coverage in minutes
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Protect your loved ones with affordable coverage in minutes. 
+            Our AI-powered platform finds you the best rates.
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-xl p-8">
+        <div className="bg-white rounded-2xl shadow-xl p-8 neon-glow">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+            <div className="text-center p-4 rounded-lg bg-[#F8FAFB]">
+              <div className="text-[#00F2F2] text-2xl font-bold mb-2">1M+</div>
+              <div className="text-gray-600">Quotes Generated</div>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-[#F8FAFB]">
+              <div className="text-[#00F2F2] text-2xl font-bold mb-2">98%</div>
+              <div className="text-gray-600">Customer Satisfaction</div>
+            </div>
+            <div className="text-center p-4 rounded-lg bg-[#F8FAFB]">
+              <div className="text-[#00F2F2] text-2xl font-bold mb-2">5★</div>
+              <div className="text-gray-600">Average Rating</div>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
@@ -104,7 +132,7 @@ export default function TermLifePage() {
                 <input
                   type="text"
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.first_name}
                   onChange={(e) => setFormData({ ...formData, first_name: e.target.value })}
                 />
@@ -116,7 +144,7 @@ export default function TermLifePage() {
                 <input
                   type="text"
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.last_name}
                   onChange={(e) => setFormData({ ...formData, last_name: e.target.value })}
                 />
@@ -131,7 +159,7 @@ export default function TermLifePage() {
                 <input
                   type="email"
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
@@ -143,7 +171,7 @@ export default function TermLifePage() {
                 <input
                   type="tel"
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.phone}
                   onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
@@ -160,7 +188,7 @@ export default function TermLifePage() {
                   required
                   min="18"
                   max="85"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.age}
                   onChange={(e) => setFormData({ ...formData, age: e.target.value })}
                 />
@@ -171,7 +199,7 @@ export default function TermLifePage() {
                 </label>
                 <select
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.gender}
                   onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
                 >
@@ -187,7 +215,7 @@ export default function TermLifePage() {
                 </label>
                 <select
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.health_status}
                   onChange={(e) => setFormData({ ...formData, health_status: e.target.value })}
                 >
@@ -206,7 +234,7 @@ export default function TermLifePage() {
                 </label>
                 <select
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.coverage_amount}
                   onChange={(e) => setFormData({ ...formData, coverage_amount: e.target.value })}
                 >
@@ -222,7 +250,7 @@ export default function TermLifePage() {
                 </label>
                 <select
                   required
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#00F2F2] focus:border-[#00F2F2] hover-neon"
                   value={formData.term_length}
                   onChange={(e) => setFormData({ ...formData, term_length: e.target.value })}
                 >
@@ -240,10 +268,24 @@ export default function TermLifePage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-[#00F2F2] text-gray-900 py-4 px-6 rounded-lg font-medium hover:bg-[#00D6D6] focus:outline-none focus:ring-2 focus:ring-[#00F2F2] focus:ring-offset-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed hover-neon"
             >
-              {loading ? 'Processing...' : 'Get Your Quote Now'}
+              {loading ? (
+                <div className="flex items-center justify-center">
+                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900 mr-2"></div>
+                  Processing...
+                </div>
+              ) : (
+                'Get Your Personalized Quote Now'
+              )}
             </button>
+
+            <p className="text-sm text-gray-500 text-center mt-4">
+              By submitting this form, you agree to our{' '}
+              <a href="#" className="text-[#00F2F2] hover:underline">Terms of Service</a>
+              {' '}and{' '}
+              <a href="#" className="text-[#00F2F2] hover:underline">Privacy Policy</a>
+            </p>
           </form>
         </div>
       </div>

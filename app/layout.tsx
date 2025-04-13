@@ -22,7 +22,7 @@ export default function RootLayout({
         <Script 
           id="hs-script-loader"
           strategy="afterInteractive"
-          src="//js.hs-scripts.com/YOUR_HUBSPOT_ID.js"
+          src="//js.hs-scripts.com/242421918.js"
         />
         {/* Google Tag Manager */}
         <Script
