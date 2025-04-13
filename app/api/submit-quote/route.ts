@@ -2,6 +2,22 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
+interface LeadData {
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  age: string;
+  gender: string;
+  health_status: string;
+  coverage_amount: string;
+  term_length: string;
+  tobacco_use: string;
+  occupation: string;
+  annual_income: string;
+  source: string;
+}
+
 // Initialize Supabase client with service role key for admin operations
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -85,24 +101,24 @@ const sendEmail = async (to: string, subject: string, html: string) => {
 }
 
 // Send data to Zapier webhook
-const sendToZapier = async (data: any) => {
+const sendToZapier = async (leadData: LeadData) => {
   try {
     // Format data specifically for HubSpot integration via Zapier
     const zapierData = {
       leads: {
-        firstName: data.leads.firstName,
-        lastName: data.leads.lastName,
-        email: data.leads.email,
-        phone: data.leads.phone,
-        age: data.leads.age,
-        gender: data.leads.gender,
-        healthStatus: data.leads.healthStatus,
-        coverageAmount: data.leads.coverageAmount,
-        termLength: data.leads.termLength,
-        tobaccoUse: data.leads.tobaccoUse,
-        occupation: data.leads.occupation,
-        annualIncome: data.leads.annualIncome,
-        source: data.leads.source
+        firstName: leadData.first_name,
+        lastName: leadData.last_name,
+        email: leadData.email,
+        phone: leadData.phone,
+        age: leadData.age,
+        gender: leadData.gender,
+        healthStatus: leadData.health_status,
+        coverageAmount: leadData.coverage_amount,
+        termLength: leadData.term_length,
+        tobaccoUse: leadData.tobacco_use,
+        occupation: leadData.occupation,
+        annualIncome: leadData.annual_income,
+        source: leadData.source
       }
     }
 
@@ -124,7 +140,7 @@ const sendToZapier = async (data: any) => {
 }
 
 // Track event in GA4
-const trackEvent = async (eventName: string, eventData: any) => {
+const trackEvent = async (eventName: string, eventData: Record<string, unknown>) => {
   try {
     await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${process.env.NEXT_PUBLIC_GA4_ID}&api_secret=${process.env.GA4_API_SECRET}`, {
       method: 'POST',
@@ -148,7 +164,7 @@ export async function POST(request: Request) {
     const submissionData = body.submissionData || body
     
     // Prepare lead data matching the exact table structure
-    const leadData = {
+    const leadData: LeadData = {
       first_name: submissionData.firstName || '',
       last_name: submissionData.lastName || '',
       email: submissionData.email || '',
@@ -215,23 +231,7 @@ export async function POST(request: Request) {
     }
 
     // Send to Zapier for HubSpot integration
-    await sendToZapier({
-      leads: {
-        firstName: leadData.first_name,
-        lastName: leadData.last_name,
-        email: leadData.email,
-        phone: leadData.phone,
-        age: leadData.age,
-        gender: leadData.gender,
-        healthStatus: leadData.health_status,
-        coverageAmount: leadData.coverage_amount,
-        termLength: leadData.term_length,
-        tobaccoUse: leadData.tobacco_use,
-        occupation: leadData.occupation,
-        annualIncome: leadData.annual_income,
-        source: leadData.source
-      }
-    })
+    await sendToZapier(leadData)
 
     // Track submission in GA4
     await trackEvent('quote_submitted', {
