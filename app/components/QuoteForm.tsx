@@ -26,21 +26,22 @@ declare global {
 }
 
 interface FormData {
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  age: string
-  gender: string
-  healthStatus: string
-  coverageAmount: string
-  termLength: string
-  tobaccoUse: string
-  annualIncome: string
-  funnelType?: string
-  utmSource?: string
-  utmMedium?: string
-  utmCampaign?: string
+  insuranceType: string;
+  coverageAmount: string;
+  termLength: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  phone: string;
+  dateOfBirth: string;
+  gender: string;
+  height: string;
+  weight: string;
+  tobaccoUse: string;
+  funnelType?: string;
+  utmSource?: string;
+  utmMedium?: string;
+  utmCampaign?: string;
 }
 
 interface QuoteFormProps {
@@ -50,12 +51,13 @@ interface QuoteFormProps {
 export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [currentStep, setCurrentStep] = useState(1)
+  const [currentStep, setCurrentStep] = useState(0)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [validationErrors, setValidationErrors] = useState<Record<string, string>>({})
+  const [validationErrors, setValidationErrors] = useState<Partial<Record<keyof FormData, string>>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [legalConsent, setLegalConsent] = useState(false)
+  const [showSuccess, setShowSuccess] = useState(false)
   
   // Get UTM parameters
   const utmSource = searchParams?.get('utm_source') || ''
@@ -63,17 +65,18 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
   const utmCampaign = searchParams?.get('utm_campaign') || ''
   
   const [formData, setFormData] = useState<FormData>({
+    insuranceType: '',
+    coverageAmount: '',
+    termLength: '',
     firstName: '',
     lastName: '',
     email: '',
     phone: '',
-    age: '',
+    dateOfBirth: '',
     gender: '',
-    healthStatus: '',
-    coverageAmount: '',
-    termLength: '',
+    height: '',
+    weight: '',
     tobaccoUse: 'no',
-    annualIncome: '',
     funnelType,
     utmSource,
     utmMedium,
@@ -94,83 +97,59 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     annualIncome: 'Helps recommend appropriate coverage'
   }
 
-  const validateField = (field: string, value: any): string | undefined => {
-    if (!value || value.trim() === '') {
-      return 'This field is required'
+  const validateField = (field: keyof FormData, value: string | undefined): string => {
+    if (!value) {
+      return 'This field is required';
     }
 
     switch (field) {
+      case 'firstName':
+        return !value ? 'First name is required' : '';
+      case 'lastName':
+        return !value ? 'Last name is required' : '';
       case 'email':
-        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
-          return 'Please enter a valid email address'
-        }
-        break
+        return !value ? 'Email is required' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value) ? 'Invalid email format' : '';
       case 'phone':
-        const phoneDigits = value.replace(/\D/g, '')
-        if (phoneDigits.length < 10) {
-          return 'Please enter a valid phone number'
-        }
-        break
-      case 'age':
-        const age = parseInt(value)
-        if (isNaN(age) || age < 18 || age > 85) {
-          return 'Age must be between 18 and 85'
-        }
-        break
+        return !value ? 'Phone number is required' : value.replace(/\D/g, '').length !== 10 ? 'Invalid phone number' : '';
+      case 'dateOfBirth':
+        return !value ? 'Date of birth is required' : '';
+      case 'gender':
+        return !value ? 'Gender is required' : '';
+      case 'height':
+        return !value ? 'Height is required' : '';
+      case 'weight':
+        return !value ? 'Weight is required' : '';
+      case 'tobaccoUse':
+        return !value ? 'Tobacco use status is required' : '';
+      case 'insuranceType':
+        return !value ? 'Insurance type is required' : '';
       case 'coverageAmount':
-        const amount = parseInt(value)
-        if (isNaN(amount) || amount < 100000) {
-          return 'Coverage amount must be at least $100,000'
-        }
-        break
+        return !value ? 'Coverage amount is required' : '';
+      case 'termLength':
+        return !value ? 'Term length is required' : '';
+      default:
+        return '';
     }
-    return undefined
   }
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
+  const handleInputChange = (field: keyof FormData, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value
-    }))
+      [field]: value
+    }));
 
     // Real-time validation
-    const fieldError = validateField(name, value)
+    const fieldError = validateField(field, value)
     setValidationErrors(prev => ({
       ...prev,
-      [name]: fieldError || ''
+      [field]: fieldError || ''
     }))
   }
 
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData(prev => ({
-      ...prev,
-      phone: e.target.value
-    }))
-
-    // Real-time validation
-    const fieldError = validateField('phone', e.target.value)
-    setValidationErrors(prev => ({
-      ...prev,
-      phone: fieldError || ''
-    }))
-  }
-
-  const handleAnnualIncomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Only allow numbers
-    const value = e.target.value.replace(/\D/g, '')
-    setFormData(prev => ({
-      ...prev,
-      annualIncome: value
-    }))
-
-    // Real-time validation
-    const fieldError = validateField('annualIncome', value)
-    setValidationErrors(prev => ({
-      ...prev,
-      annualIncome: fieldError || ''
-    }))
-  }
+    const value = e.target.value;
+    handleInputChange('phone', value);
+  };
 
   const handleNext = () => {
     const stepFields = currentStep === 1 
@@ -182,7 +161,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     const errors: Record<string, string> = {}
     stepFields.forEach(field => {
       const value = formData[field as keyof FormData]
-      const error = validateField(field, value)
+      const error = validateField(field as keyof FormData, value)
       if (error) {
         errors[field] = error
       }
@@ -202,64 +181,44 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const errors = validateField(currentStep === 1 ? 'firstName' : 'age', formData[currentStep === 1 ? 'firstName' : 'age'])
-    if (errors) {
-      setValidationErrors({ [currentStep === 1 ? 'firstName' : 'age']: errors })
-      return
-    }
-    if (!legalConsent) {
-      setError('You must agree to the Privacy Policy and Terms of Service to continue.')
-      return
-    }
+    e.preventDefault();
+    setIsSubmitting(true);
+    setError('');
 
-    setIsSubmitting(true)
-    setError('')
-    
     try {
-      console.log('Submitting form data:', formData)
       const response = await fetch('/api/submit-quote', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      })
-
-      const result = await response.json()
-      console.log('API Response:', result)
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          funnelType: formData.funnelType || undefined,
+          utmSource: formData.utmSource || undefined,
+          utmMedium: formData.utmMedium || undefined,
+          utmCampaign: formData.utmCampaign || undefined
+        }),
+      });
 
       if (!response.ok) {
-        throw new Error(result.error || 'Submission failed')
-      }
-      
-      // Track form submission with GA4
-      if (typeof window !== 'undefined' && window.gtag) {
-        window.gtag('event', 'quote_submitted', {
-          event_category: 'quote_request',
-          event_label: formData.funnelType || 'quote_form',
-          value: parseInt(formData.coverageAmount, 10)
-        })
+        throw new Error('Failed to submit form');
       }
 
-      // Track HubSpot event if available
-      if (typeof window !== 'undefined' && window.analytics) {
-        window.analytics.track('Quote Request Submitted', {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          email: formData.email,
-          coverageAmount: formData.coverageAmount,
-          termLength: formData.termLength,
-          funnelType: formData.funnelType
-        })
+      setShowSuccess(true);
+      // Track form submission in Google Analytics
+      if (typeof window !== 'undefined' && (window as any).gtag) {
+        (window as any).gtag('event', 'form_submission', {
+          event_category: 'Quote Form',
+          event_label: formData.insuranceType,
+          value: parseInt(formData.coverageAmount)
+        });
       }
-
-      // Redirect to thank you page
-      router.push('/thank-you')
     } catch (err) {
-      console.error('Form submission error:', err)
-      setError(err instanceof Error ? err.message : 'Something went wrong. Please try again.')
-      setIsSubmitting(false)
+      setError('An error occurred while submitting the form. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  }
+  };
 
   // Format phone number for display
   const formatPhoneNumber = (value: string) => {
@@ -275,437 +234,312 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     }
   }
 
+  const validateStep = (step: number): Partial<Record<keyof FormData, string>> => {
+    const errors: Partial<Record<keyof FormData, string>> = {};
+    
+    if (step === 0) {
+      const stepFields: (keyof FormData)[] = ['insuranceType', 'coverageAmount', 'termLength'];
+      stepFields.forEach(field => {
+        const value = formData[field];
+        const error = validateField(field, value);
+        if (error) {
+          errors[field] = error;
+        }
+      });
+    } else if (step === 1) {
+      const stepFields: (keyof FormData)[] = ['firstName', 'lastName', 'email', 'phone'];
+      stepFields.forEach(field => {
+        const value = formData[field];
+        const error = validateField(field, value);
+        if (error) {
+          errors[field] = error;
+        }
+      });
+    } else if (step === 2) {
+      const stepFields: (keyof FormData)[] = ['dateOfBirth', 'gender', 'height', 'weight', 'tobaccoUse'];
+      stepFields.forEach(field => {
+        const value = formData[field];
+        const error = validateField(field, value);
+        if (error) {
+          errors[field] = error;
+        }
+      });
+    }
+    
+    return errors;
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white to-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        {/* Progress bar */}
-        <div className="mb-8">
-          <div className="flex justify-between mb-2">
-            {[1, 2, 3].map((step) => (
-              <div key={step} className="flex items-center">
-                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                  currentStep >= step ? 'bg-cyan-500 text-white' : 'bg-gray-200 text-gray-500'
-                }`}>
-                  {step}
-                </div>
-                {step < 3 && (
-                  <div className={`h-1 w-24 sm:w-32 md:w-48 ${
-                    currentStep > step ? 'bg-cyan-500' : 'bg-gray-200'
-                  }`} />
+    <div className="max-w-2xl mx-auto">
+      <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+        <div className="text-center mb-8">
+          <h2 className="text-3xl font-bold text-gray-900 mb-3">
+            Get Your Personalized Quote
+          </h2>
+          <p className="text-gray-600 text-lg">
+            {currentStep === 0 ? 'Compare rates from top insurance providers' :
+             currentStep === 1 ? 'Tell us about yourself' :
+             'Almost there! Just a few more details'}
+          </p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {currentStep === 0 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Insurance Type
+                </label>
+                <select
+                  value={formData.insuranceType}
+                  onChange={(e) => handleInputChange('insuranceType', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="">Select insurance type</option>
+                  <option value="term">Term Life Insurance</option>
+                  <option value="whole">Whole Life Insurance</option>
+                  <option value="universal">Universal Life Insurance</option>
+                </select>
+                {validationErrors.insuranceType && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.insuranceType}</p>
                 )}
               </div>
-            ))}
-          </div>
-        </div>
 
-        {/* Form Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold text-gray-900">
-              {currentStep === 1 && "Personal Information"}
-              {currentStep === 2 && "Health Details"}
-              {currentStep === 3 && "Coverage Preferences"}
-            </h2>
-            <p className="mt-2 text-gray-600">Step {currentStep} of 3</p>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {currentStep === 1 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      First Name <span className="text-red-500">*</span>
-                      <ReactTooltip id="firstName" className="max-w-xs" />
-                      <QuestionMarkCircleIcon
-                        data-tooltip-id="firstName"
-                        data-tooltip-content={tooltips.firstName}
-                        className="inline-block w-4 h-4 ml-1 text-gray-400"
-                      />
-                    </label>
-                    <input
-                      type="text"
-                      name="firstName"
-                      value={formData.firstName}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                    />
-                    {validationErrors.firstName && (
-                      <p className="mt-1 text-sm text-red-600">{validationErrors.firstName}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Last Name <span className="text-red-500">*</span>
-                      <ReactTooltip id="lastName" className="max-w-xs" />
-                      <QuestionMarkCircleIcon
-                        data-tooltip-id="lastName"
-                        data-tooltip-content={tooltips.lastName}
-                        className="inline-block w-4 h-4 ml-1 text-gray-400"
-                      />
-                    </label>
-                    <input
-                      type="text"
-                      name="lastName"
-                      value={formData.lastName}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                    />
-                    {validationErrors.lastName && (
-                      <p className="mt-1 text-sm text-red-600">{validationErrors.lastName}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Email <span className="text-red-500">*</span>
-                    <ReactTooltip id="email" className="max-w-xs" />
-                    <QuestionMarkCircleIcon
-                      data-tooltip-id="email"
-                      data-tooltip-content={tooltips.email}
-                      className="inline-block w-4 h-4 ml-1 text-gray-400"
-                    />
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                  />
-                  {validationErrors.email && (
-                    <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Phone <span className="text-red-500">*</span>
-                    <ReactTooltip id="phone" className="max-w-xs" />
-                    <QuestionMarkCircleIcon
-                      data-tooltip-id="phone"
-                      data-tooltip-content={tooltips.phone}
-                      className="inline-block w-4 h-4 ml-1 text-gray-400"
-                    />
-                  </label>
-                  <InputMask
-                    mask="(999) 999-9999"
-                    value={formData.phone}
-                    onChange={handlePhoneChange}
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                    placeholder="(555) 555-5555"
-                  />
-                  {validationErrors.phone && (
-                    <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {currentStep === 2 && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Age <span className="text-red-500">*</span>
-                      <ReactTooltip id="age" className="max-w-xs" />
-                      <QuestionMarkCircleIcon
-                        data-tooltip-id="age"
-                        data-tooltip-content={tooltips.age}
-                        className="inline-block w-4 h-4 ml-1 text-gray-400"
-                      />
-                    </label>
-                    <input
-                      type="number"
-                      name="age"
-                      value={formData.age}
-                      onChange={handleChange}
-                      min="18"
-                      max="85"
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                    />
-                    {validationErrors.age && (
-                      <p className="mt-1 text-sm text-red-600">{validationErrors.age}</p>
-                    )}
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700">
-                      Gender <span className="text-red-500">*</span>
-                      <ReactTooltip id="gender" className="max-w-xs" />
-                      <QuestionMarkCircleIcon
-                        data-tooltip-id="gender"
-                        data-tooltip-content={tooltips.gender}
-                        className="inline-block w-4 h-4 ml-1 text-gray-400"
-                      />
-                    </label>
-                    <select
-                      name="gender"
-                      value={formData.gender}
-                      onChange={handleChange}
-                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                    >
-                      <option value="">Select Gender</option>
-                      <option value="male">Male</option>
-                      <option value="female">Female</option>
-                      <option value="other">Other</option>
-                    </select>
-                    {validationErrors.gender && (
-                      <p className="mt-1 text-sm text-red-600">{validationErrors.gender}</p>
-                    )}
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Health Status <span className="text-red-500">*</span>
-                    <ReactTooltip id="healthStatus" className="max-w-xs" />
-                    <QuestionMarkCircleIcon
-                      data-tooltip-id="healthStatus"
-                      data-tooltip-content={tooltips.healthStatus}
-                      className="inline-block w-4 h-4 ml-1 text-gray-400"
-                    />
-                  </label>
-                  <select
-                    name="healthStatus"
-                    value={formData.healthStatus}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                  >
-                    <option value="">Select Health Status</option>
-                    <option value="excellent">Excellent</option>
-                    <option value="good">Good</option>
-                    <option value="fair">Fair</option>
-                    <option value="poor">Poor</option>
-                  </select>
-                  {validationErrors.healthStatus && (
-                    <p className="mt-1 text-sm text-red-600">{validationErrors.healthStatus}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Tobacco Use <span className="text-red-500">*</span>
-                    <ReactTooltip id="tobaccoUse" className="max-w-xs" />
-                    <QuestionMarkCircleIcon
-                      data-tooltip-id="tobaccoUse"
-                      data-tooltip-content={tooltips.tobaccoUse}
-                      className="inline-block w-4 h-4 ml-1 text-gray-400"
-                    />
-                  </label>
-                  <div className="mt-2 space-x-4">
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        name="tobaccoUse"
-                        value="no"
-                        checked={formData.tobaccoUse === 'no'}
-                        onChange={handleChange}
-                        className="form-radio h-4 w-4 text-cyan-500 focus:ring-cyan-500"
-                      />
-                      <span className="ml-2">No</span>
-                    </label>
-                    <label className="inline-flex items-center">
-                      <input
-                        type="radio"
-                        name="tobaccoUse"
-                        value="yes"
-                        checked={formData.tobaccoUse === 'yes'}
-                        onChange={handleChange}
-                        className="form-radio h-4 w-4 text-cyan-500 focus:ring-cyan-500"
-                      />
-                      <span className="ml-2">Yes</span>
-                    </label>
-                  </div>
-                  {validationErrors.tobaccoUse && (
-                    <p className="mt-1 text-sm text-red-600">{validationErrors.tobaccoUse}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {currentStep === 3 && (
-              <div className="space-y-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Coverage Amount <span className="text-red-500">*</span>
-                    <ReactTooltip id="coverageAmount" className="max-w-xs" />
-                    <QuestionMarkCircleIcon
-                      data-tooltip-id="coverageAmount"
-                      data-tooltip-content={tooltips.coverageAmount}
-                      className="inline-block w-4 h-4 ml-1 text-gray-400"
-                    />
-                  </label>
-                  <select
-                    name="coverageAmount"
-                    value={formData.coverageAmount}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                  >
-                    <option value="">Select Coverage Amount</option>
-                    <option value="100000">$100,000</option>
-                    <option value="250000">$250,000</option>
-                    <option value="500000">$500,000</option>
-                    <option value="750000">$750,000</option>
-                    <option value="1000000">$1,000,000</option>
-                    <option value="2000000">$2,000,000+</option>
-                  </select>
-                  {validationErrors.coverageAmount && (
-                    <p className="mt-1 text-sm text-red-600">{validationErrors.coverageAmount}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Term Length <span className="text-red-500">*</span>
-                    <ReactTooltip id="termLength" className="max-w-xs" />
-                    <QuestionMarkCircleIcon
-                      data-tooltip-id="termLength"
-                      data-tooltip-content={tooltips.termLength}
-                      className="inline-block w-4 h-4 ml-1 text-gray-400"
-                    />
-                  </label>
-                  <select
-                    name="termLength"
-                    value={formData.termLength}
-                    onChange={handleChange}
-                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
-                  >
-                    <option value="">Select Term Length</option>
-                    <option value="10">10 Years</option>
-                    <option value="20">20 Years</option>
-                    <option value="30">30 Years</option>
-                  </select>
-                  {validationErrors.termLength && (
-                    <p className="mt-1 text-sm text-red-600">{validationErrors.termLength}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700">
-                    Annual Income
-                    <ReactTooltip id="annualIncome" className="max-w-xs" />
-                    <QuestionMarkCircleIcon
-                      data-tooltip-id="annualIncome"
-                      data-tooltip-content={tooltips.annualIncome}
-                      className="inline-block w-4 h-4 ml-1 text-gray-400"
-                    />
-                  </label>
-                  <div className="mt-1 relative rounded-lg shadow-sm">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <span className="text-gray-500 sm:text-sm">$</span>
-                    </div>
-                    <input
-                      type="text"
-                      name="annualIncome"
-                      value={formData.annualIncome}
-                      onChange={handleAnnualIncomeChange}
-                      placeholder="75,000"
-                      className="block w-full pl-7 pr-12 rounded-lg border-gray-300 focus:border-cyan-500 focus:ring-cyan-500"
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-6">
-                  <div className="flex items-start">
-                    <div className="flex items-center h-5">
-                      <input
-                        id="legal-consent"
-                        name="legal-consent"
-                        type="checkbox"
-                        checked={legalConsent}
-                        onChange={(e) => setLegalConsent(e.target.checked)}
-                        className="h-4 w-4 text-cyan-500 focus:ring-cyan-500 border-gray-300 rounded"
-                      />
-                    </div>
-                    <div className="ml-3">
-                      <label htmlFor="legal-consent" className="text-sm text-gray-700">
-                        I agree to be contacted via phone, text, or email. I have read and agree to the{' '}
-                        <Link href="/privacy-policy" className="text-cyan-500 hover:text-cyan-600">
-                          Privacy Policy
-                        </Link>{' '}
-                        and{' '}
-                        <Link href="/terms-of-service" className="text-cyan-500 hover:text-cyan-600">
-                          Terms of Service
-                        </Link>
-                        .
-                      </label>
-                    </div>
-                  </div>
-                  {!legalConsent && error && (
-                    <p className="mt-2 text-sm text-red-600">{error}</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Navigation Buttons */}
-            <div className="flex justify-between mt-8">
-              {currentStep > 1 && (
-                <button
-                  type="button"
-                  onClick={handleBack}
-                  className="inline-flex items-center px-6 py-3 border border-gray-300 text-base font-medium rounded-lg text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500"
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Coverage Amount
+                </label>
+                <select
+                  value={formData.coverageAmount}
+                  onChange={(e) => handleInputChange('coverageAmount', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 >
-                  Back
-                </button>
-              )}
-              {currentStep < 3 ? (
-                <button
-                  type="button"
-                  onClick={handleNext}
-                  className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-cyan-500 hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 ${
-                    currentStep === 1 ? 'ml-auto' : ''
-                  }`}
+                  <option value="">Select coverage amount</option>
+                  <option value="100000">$100,000</option>
+                  <option value="250000">$250,000</option>
+                  <option value="500000">$500,000</option>
+                  <option value="1000000">$1,000,000</option>
+                </select>
+                {validationErrors.coverageAmount && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.coverageAmount}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Term Length
+                </label>
+                <select
+                  value={formData.termLength}
+                  onChange={(e) => handleInputChange('termLength', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                 >
-                  Next
-                </button>
-              ) : (
-                <button
-                  type="submit"
-                  disabled={isSubmitting || !legalConsent}
-                  className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-cyan-500 hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed ${
-                    currentStep === 1 ? 'ml-auto' : ''
-                  }`}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Processing...
-                    </>
-                  ) : (
-                    'Get Your Quote'
-                  )}
-                </button>
-              )}
+                  <option value="">Select term length</option>
+                  <option value="10">10 Years</option>
+                  <option value="20">20 Years</option>
+                  <option value="30">30 Years</option>
+                </select>
+                {validationErrors.termLength && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.termLength}</p>
+                )}
+              </div>
             </div>
-          </form>
-        </div>
+          )}
 
-        {/* Trust Signals */}
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-3">
-          <div className="flex items-center space-x-3">
-            <svg className="h-6 w-6 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-            </svg>
-            <span className="text-sm text-gray-600">Your information is secure</span>
+          {currentStep === 1 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  First Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.firstName}
+                  onChange={(e) => handleInputChange('firstName', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter your first name"
+                />
+                {validationErrors.firstName && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.firstName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={formData.lastName}
+                  onChange={(e) => handleInputChange('lastName', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter your last name"
+                />
+                {validationErrors.lastName && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.lastName}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => handleInputChange('email', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter your email"
+                />
+                {validationErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.email}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Phone
+                </label>
+                <InputMask
+                  mask="(999) 999-9999"
+                  value={formData.phone}
+                  onChange={(e) => handlePhoneChange(e)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="(555) 555-5555"
+                />
+                {validationErrors.phone && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.phone}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          {currentStep === 2 && (
+            <div className="space-y-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Date of Birth
+                </label>
+                <input
+                  type="date"
+                  value={formData.dateOfBirth}
+                  onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                />
+                {validationErrors.dateOfBirth && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.dateOfBirth}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Gender
+                </label>
+                <select
+                  value={formData.gender}
+                  onChange={(e) => handleInputChange('gender', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="">Select gender</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+                {validationErrors.gender && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.gender}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Height (inches)
+                </label>
+                <input
+                  type="number"
+                  value={formData.height}
+                  onChange={(e) => handleInputChange('height', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter height in inches"
+                />
+                {validationErrors.height && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.height}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Weight (lbs)
+                </label>
+                <input
+                  type="number"
+                  value={formData.weight}
+                  onChange={(e) => handleInputChange('weight', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter weight in pounds"
+                />
+                {validationErrors.weight && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.weight}</p>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Tobacco Use
+                </label>
+                <select
+                  value={formData.tobaccoUse}
+                  onChange={(e) => handleInputChange('tobaccoUse', e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                >
+                  <option value="">Select tobacco use status</option>
+                  <option value="no">No</option>
+                  <option value="yes">Yes</option>
+                </select>
+                {validationErrors.tobaccoUse && (
+                  <p className="mt-1 text-sm text-red-600">{validationErrors.tobaccoUse}</p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div className="flex justify-between pt-6">
+            {currentStep > 0 && (
+              <button
+                type="button"
+                onClick={handleBack}
+                className="px-6 py-3 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors font-medium"
+              >
+                Back
+              </button>
+            )}
+            {currentStep < 2 ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                className="ml-auto px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg hover:shadow-xl"
+              >
+                Next
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="ml-auto px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmitting ? 'Submitting...' : 'Get Your Quote'}
+              </button>
+            )}
           </div>
-          <div className="flex items-center space-x-3">
-            <svg className="h-6 w-6 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span className="text-sm text-gray-600">2-minute quote process</span>
+        </form>
+
+        {showSuccess && (
+          <div className="mt-8 p-6 bg-green-50 rounded-lg border border-green-200">
+            <h3 className="text-xl font-semibold text-green-800 mb-2">Thank You!</h3>
+            <p className="text-green-700">
+              Your information has been submitted successfully. A licensed insurance agent will contact you shortly to discuss your personalized quote.
+            </p>
           </div>
-          <div className="flex items-center space-x-3">
-            <svg className="h-6 w-6 text-cyan-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8h2a2 2 0 012 2v6a2 2 0 01-2 2h-2v4l-4-4H9a1.994 1.994 0 01-1.414-.586m0 0L11 14h4a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2v4l.586-.586z" />
-            </svg>
-            <span className="text-sm text-gray-600">Licensed agent support</span>
-          </div>
-        </div>
+        )}
       </div>
     </div>
   )
