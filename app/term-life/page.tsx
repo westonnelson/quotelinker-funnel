@@ -92,11 +92,10 @@ export default function TermLifePage() {
             <LinkIcon className="h-16 w-16 text-[#00F2F2] animate-pulse" />
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
-            Get Your <span className="text-[#00F2F2]">Term Life</span> Quote
+            Get Your <span className="text-[#00F2F2]">Term Life Insurance</span> Quote Today
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Protect your loved ones with affordable coverage in minutes. 
-            Our AI-powered platform finds you the best rates.
+            Fast, Simple, and Secure. Get the coverage you need in minutes.
           </p>
         </div>
 
