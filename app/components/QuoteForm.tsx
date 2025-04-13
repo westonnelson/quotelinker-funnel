@@ -183,7 +183,11 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
   }
 
   const handleNext = () => {
-    const errors = validateStep(currentStep === 1 ? ['firstName', 'lastName', 'email', 'phone'] : ['age', 'gender', 'healthStatus', 'tobaccoUse'])
+    const stepFields = currentStep === 1 
+      ? ['firstName', 'lastName', 'email', 'phone']
+      : ['age', 'gender', 'healthStatus', 'tobaccoUse']
+    
+    const errors = validateStep(stepFields)
     if (Object.keys(errors).length === 0) {
       setCurrentStep(prev => prev + 1)
       setError('')
