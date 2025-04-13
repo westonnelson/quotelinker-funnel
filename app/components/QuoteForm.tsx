@@ -95,7 +95,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
   }
 
   const validateField = (field: string, value: any): string | undefined => {
-    if (!value) {
+    if (!value || value.trim() === '') {
       return 'This field is required'
     }
 
@@ -172,25 +172,25 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     }))
   }
 
-  const validateStep = (stepFields: string[]): Record<string, string> => {
+  const handleNext = () => {
+    const stepFields = currentStep === 1 
+      ? ['firstName', 'lastName', 'email', 'phone']
+      : currentStep === 2
+      ? ['age', 'gender', 'healthStatus', 'tobaccoUse']
+      : ['coverageAmount', 'termLength']
+    
     const errors: Record<string, string> = {}
     stepFields.forEach(field => {
       const value = formData[field as keyof FormData]
       const error = validateField(field, value)
-      if (error) errors[field] = error
+      if (error) {
+        errors[field] = error
+      }
     })
-    return errors
-  }
 
-  const handleNext = () => {
-    const stepFields = currentStep === 1 
-      ? ['firstName', 'lastName', 'email', 'phone']
-      : ['age', 'gender', 'healthStatus', 'tobaccoUse']
-    
-    const errors = validateStep(stepFields)
     if (Object.keys(errors).length === 0) {
       setCurrentStep(prev => prev + 1)
-      setError('')
+      setValidationErrors({})
     } else {
       setValidationErrors(errors)
     }
@@ -203,9 +203,9 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const errors = validateStep(currentStep === 1 ? ['firstName', 'lastName', 'email', 'phone'] : ['age', 'gender', 'healthStatus', 'tobaccoUse'])
-    if (Object.keys(errors).length > 0) {
-      setValidationErrors(errors)
+    const errors = validateField(currentStep === 1 ? 'firstName' : 'age', formData[currentStep === 1 ? 'firstName' : 'age'])
+    if (errors) {
+      setValidationErrors({ [currentStep === 1 ? 'firstName' : 'age']: errors })
       return
     }
     if (!legalConsent) {
