@@ -81,35 +81,66 @@ export async function POST(request: Request) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
     console.log('Supabase client created')
 
-    const formData = await request.json()
-    console.log('Received form data:', formData)
+    let formData;
+    try {
+      formData = await request.json()
+      console.log('Received form data:', formData)
+    } catch (error) {
+      console.error('Error parsing request body:', error)
+      throw new Error('Invalid request body')
+    }
 
     // Validate required fields
     const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'age', 'gender', 'healthStatus', 'coverageAmount', 'termLength']
-    for (const field of requiredFields) {
-      if (!formData[field]) {
-        throw new Error(`Missing required field: ${field}`)
-      }
+    const missingFields = requiredFields.filter(field => !formData[field])
+    if (missingFields.length > 0) {
+      throw new Error(`Missing required fields: ${missingFields.join(', ')}`)
+    }
+
+    // Validate data types
+    if (isNaN(parseInt(formData.age, 10))) {
+      throw new Error('Age must be a number')
+    }
+    if (isNaN(parseInt(formData.coverageAmount, 10))) {
+      throw new Error('Coverage amount must be a number')
+    }
+    if (isNaN(parseInt(formData.termLength, 10))) {
+      throw new Error('Term length must be a number')
+    }
+    if (formData.annualIncome && isNaN(parseInt(formData.annualIncome, 10))) {
+      throw new Error('Annual income must be a number')
     }
 
     const leadData = {
-      first_name: formData.firstName,
-      last_name: formData.lastName,
-      email: formData.email,
-      phone: formData.phone,
+      first_name: formData.firstName.trim(),
+      last_name: formData.lastName.trim(),
+      email: formData.email.trim().toLowerCase(),
+      phone: formData.phone.trim(),
       age: parseInt(formData.age, 10),
-      gender: formData.gender,
-      health_status: formData.healthStatus,
+      gender: formData.gender.trim().toLowerCase(),
+      health_status: formData.healthStatus.trim().toLowerCase(),
       coverage_amount: parseInt(formData.coverageAmount, 10),
       term_length: parseInt(formData.termLength, 10),
       tobacco_use: formData.tobaccoUse ? 'yes' : 'no',
-      occupation: formData.occupation || 'Not specified',
+      occupation: (formData.occupation || 'Not specified').trim(),
       annual_income: formData.annualIncome ? parseInt(formData.annualIncome, 10) : null,
       source: 'term_life_quote_form',
       created_at: new Date().toISOString()
     }
 
     console.log('Mapped lead data:', leadData)
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(leadData.email)) {
+      throw new Error('Invalid email format')
+    }
+
+    // Validate phone format (basic validation)
+    const phoneRegex = /^\+?[\d\s-()]+$/
+    if (!phoneRegex.test(leadData.phone)) {
+      throw new Error('Invalid phone format')
+    }
 
     console.log('Attempting to insert into Supabase...')
     const { data, error } = await supabase
