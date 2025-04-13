@@ -80,6 +80,22 @@ export async function POST(request: Request) {
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
     console.log('Supabase client created')
 
+    // Check if leads table exists
+    const { error: tableError } = await supabase
+      .from('leads')
+      .select('*')
+      .limit(1)
+
+    if (tableError) {
+      console.log('Leads table does not exist, creating it...')
+      const { error: createError } = await supabase.rpc('create_leads_table')
+      if (createError) {
+        console.error('Error creating leads table:', createError)
+        throw createError
+      }
+      console.log('Leads table created successfully')
+    }
+
     const formData = await request.json()
     console.log('Received form data:', formData)
 
