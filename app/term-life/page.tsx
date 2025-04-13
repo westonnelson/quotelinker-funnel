@@ -26,7 +26,7 @@ export default function TermLifePage() {
     setError('')
 
     try {
-      const { error } = await supabase
+      const { error: supabaseError } = await supabase
         .from('leads')
         .insert([{
           ...formData,
@@ -35,7 +35,7 @@ export default function TermLifePage() {
           term_length: parseInt(formData.term_length)
         }])
 
-      if (error) throw error
+      if (supabaseError) throw supabaseError
       router.push('/thank-you')
     } catch (err) {
       setError('Something went wrong. Please try again.')
@@ -46,8 +46,8 @@ export default function TermLifePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
-      <div className="max-w-4xl mx-auto px-4 py-12">
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white py-12">
+      <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
             Get Your Term Life Insurance Quote
@@ -203,13 +203,13 @@ export default function TermLifePage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? 'Processing...' : 'Get Your Quote Now'}
             </button>
           </form>
         </div>
       </div>
-    </div>
+    </main>
   )
 }

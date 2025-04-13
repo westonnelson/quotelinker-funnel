@@ -16,8 +16,8 @@ export default function ThankYouPage() {
   }, [router])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
-      <div className="max-w-2xl mx-auto px-4 py-12 text-center">
+    <main className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex items-center justify-center">
+      <div className="max-w-2xl mx-auto px-4 py-12">
         <div className="bg-white rounded-2xl shadow-xl p-8">
           <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <svg
@@ -35,17 +35,17 @@ export default function ThankYouPage() {
               />
             </svg>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-4">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4 text-center">
             Thank You for Your Submission!
           </h1>
-          <p className="text-xl text-gray-600 mb-6">
+          <p className="text-xl text-gray-600 mb-6 text-center">
             We've received your information and will be in touch shortly with your personalized quote.
           </p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm text-gray-500 text-center">
             You will be redirected to the home page in a few seconds...
           </p>
         </div>
       </div>
-    </div>
+    </main>
   )
 }
