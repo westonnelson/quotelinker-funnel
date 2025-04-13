@@ -1,17 +1,4 @@
-'use client'
-
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
-import { LinkIcon, ShieldCheckIcon, StarIcon } from '@heroicons/react/24/solid'
 import QuoteForm from '../components/QuoteForm'
-
-declare global {
-  interface Window {
-    _hsq: any[]
-    dataLayer: any[]
-  }
-}
 
 export const metadata = {
   title: 'Term Life Insurance Quotes | QuoteLinker',

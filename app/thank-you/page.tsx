@@ -1,22 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import Image from 'next/image'
 import Link from 'next/link'
 
 export default function ThankYou() {
-  const router = useRouter()
-
-  useEffect(() => {
-    // Redirect to home page after 5 seconds
-    const timeout = setTimeout(() => {
-      router.push('/')
-    }, 5000)
-
-    return () => clearTimeout(timeout)
-  }, [router])
-
   return (
     <div className="min-h-[60vh] flex items-center justify-center bg-gray-50">
       <div className="max-w-2xl mx-auto px-4 py-16 sm:px-6 sm:py-24 lg:px-8">

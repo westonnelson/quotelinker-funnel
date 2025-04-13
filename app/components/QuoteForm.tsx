@@ -44,7 +44,7 @@ export default function QuoteForm() {
   const tooltips = {
     firstName: 'Required to personalize your quote',
     lastName: 'Required to personalize your quote',
-    email: 'We'll send your quote details here',
+    email: "We'll send your quote details here",
     phone: 'Required to connect you with a licensed agent',
     age: 'Required to calculate accurate rates',
     gender: 'Required for accurate health assessment',
