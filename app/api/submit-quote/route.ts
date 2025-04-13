@@ -16,33 +16,39 @@ const supabase = createClient(
 
 export async function POST(request: Request) {
   try {
+    console.log('Starting quote submission process...')
     const data = await request.json()
     
     // Store lead in Supabase
+    console.log('Storing lead in Supabase...')
     const { error: supabaseError } = await supabase
       .from('leads')
-      .insert([
-        {
-          first_name: data.firstName,
-          last_name: data.lastName,
-          email: data.email,
-          phone: data.phone,
-          age: parseInt(data.age),
-          gender: data.gender,
-          health_status: data.healthStatus,
-          coverage_amount: parseInt(data.coverageAmount),
-          term_length: parseInt(data.termLength),
-          tobacco_use: data.tobaccoUse,
-          occupation: data.occupation,
-          annual_income: data.annualIncome,
-          status: 'new'
-        }
-      ])
+      .insert([{
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        phone: data.phone,
+        age: parseInt(data.age),
+        gender: data.gender,
+        health_status: data.healthStatus,
+        coverage_amount: parseInt(data.coverageAmount),
+        term_length: parseInt(data.termLength),
+        tobacco_use: data.tobaccoUse,
+        occupation: data.occupation,
+        annual_income: data.annualIncome,
+        status: 'new',
+        created_at: new Date().toISOString()
+      }])
 
-    if (supabaseError) throw supabaseError
+    if (supabaseError) {
+      console.error('Supabase error:', supabaseError)
+      throw supabaseError
+    }
+    console.log('Successfully stored lead in Supabase')
 
     // Send to HubSpot via Zapier
     if (process.env.ZAPIER_WEBHOOK_URL) {
+      console.log('Sending data to HubSpot via Zapier...')
       const hubspotData = {
         fields: [
           { name: 'firstname', value: data.firstName },
@@ -71,12 +77,16 @@ export async function POST(request: Request) {
       })
 
       if (!zapierResponse.ok) {
-        console.error('Failed to send to Zapier:', await zapierResponse.text())
+        const errorText = await zapierResponse.text()
+        console.error('Failed to send to Zapier:', errorText)
+      } else {
+        console.log('Successfully sent data to HubSpot via Zapier')
       }
     }
 
     // Send notification email
     if (process.env.RESEND_API_KEY) {
+      console.log('Sending notification email...')
       const emailData = {
         from: process.env.EMAIL_FROM,
         to: process.env.EMAIL_TO,
@@ -88,6 +98,7 @@ export async function POST(request: Request) {
           <p><strong>Phone:</strong> ${data.phone}</p>
           <p><strong>Coverage Amount:</strong> $${parseInt(data.coverageAmount).toLocaleString()}</p>
           <p><strong>Term Length:</strong> ${data.termLength} Years</p>
+          <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
         `
       }
 
@@ -101,10 +112,14 @@ export async function POST(request: Request) {
       })
 
       if (!emailResponse.ok) {
-        console.error('Failed to send email:', await emailResponse.text())
+        const errorText = await emailResponse.text()
+        console.error('Failed to send email:', errorText)
+      } else {
+        console.log('Successfully sent notification email')
       }
     }
 
+    console.log('Quote submission process completed successfully')
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Form submission error:', error)
