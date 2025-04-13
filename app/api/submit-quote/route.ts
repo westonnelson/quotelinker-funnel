@@ -70,7 +70,8 @@ export async function POST(request: Request) {
       hasSupabaseUrl: !!supabaseUrl,
       hasSupabaseKey: !!supabaseAnonKey,
       hasZapierUrl: !!zapierWebhookUrl,
-      hasResendKey: !!resendApiKey
+      hasResendKey: !!resendApiKey,
+      supabaseUrl
     })
     
     if (!supabaseUrl || !supabaseAnonKey) {
@@ -81,19 +82,30 @@ export async function POST(request: Request) {
     console.log('Supabase client created')
 
     // Check if leads table exists
+    console.log('Checking if leads table exists...')
     const { error: tableError } = await supabase
       .from('leads')
       .select('*')
       .limit(1)
 
     if (tableError) {
-      console.log('Leads table does not exist, creating it...')
+      console.log('Leads table does not exist, attempting to create it...')
+      console.log('Table error:', tableError)
+
+      // Try to create the table using the stored procedure
       const { error: createError } = await supabase.rpc('create_leads_table')
       if (createError) {
-        console.error('Error creating leads table:', createError)
+        console.error('Error creating leads table:', {
+          message: createError.message,
+          details: createError.details,
+          hint: createError.hint,
+          code: createError.code
+        })
         throw createError
       }
       console.log('Leads table created successfully')
+    } else {
+      console.log('Leads table exists')
     }
 
     const formData = await request.json()
@@ -133,11 +145,12 @@ export async function POST(request: Request) {
       .select()
 
     if (error) {
-      console.error('Supabase error:', {
+      console.error('Supabase insert error:', {
         message: error.message,
         details: error.details,
         hint: error.hint,
-        code: error.code
+        code: error.code,
+        data: leadData
       })
       throw error
     }
@@ -147,6 +160,7 @@ export async function POST(request: Request) {
     // Send to Zapier if webhook URL is configured
     if (zapierWebhookUrl) {
       try {
+        console.log('Sending data to Zapier...')
         const zapierResponse = await fetch(zapierWebhookUrl, {
           method: 'POST',
           headers: {
@@ -157,6 +171,8 @@ export async function POST(request: Request) {
         
         if (!zapierResponse.ok) {
           console.error('Zapier webhook error:', await zapierResponse.text())
+        } else {
+          console.log('Successfully sent data to Zapier')
         }
       } catch (zapierError) {
         console.error('Failed to send to Zapier:', zapierError)
@@ -166,6 +182,7 @@ export async function POST(request: Request) {
     // Send notification email if Resend is configured
     if (resendApiKey) {
       try {
+        console.log('Sending notification email...')
         const resend = new Resend(resendApiKey)
         await resend.emails.send({
           from: 'notifications@quotelinker.com',
@@ -181,11 +198,12 @@ export async function POST(request: Request) {
             <p><strong>Health Status:</strong> ${leadData.health_status}</p>
             <p><strong>Coverage Amount:</strong> $${leadData.coverage_amount.toLocaleString()}</p>
             <p><strong>Term Length:</strong> ${leadData.term_length} years</p>
-            <p><strong>Tobacco Use:</strong> ${leadData.tobacco_use ? 'Yes' : 'No'}</p>
+            <p><strong>Tobacco Use:</strong> ${leadData.tobacco_use}</p>
             <p><strong>Occupation:</strong> ${leadData.occupation || 'Not specified'}</p>
             <p><strong>Annual Income:</strong> ${leadData.annual_income ? `$${leadData.annual_income.toLocaleString()}` : 'Not specified'}</p>
           `
         })
+        console.log('Successfully sent notification email')
       } catch (emailError) {
         console.error('Failed to send notification email:', emailError)
       }
@@ -201,7 +219,8 @@ export async function POST(request: Request) {
     console.error('API error:', {
       name: error instanceof Error ? error.name : 'Unknown',
       message: error instanceof Error ? error.message : 'Unknown error',
-      stack: error instanceof Error ? error.stack : undefined
+      stack: error instanceof Error ? error.stack : undefined,
+      error
     })
     
     return NextResponse.json({ 
