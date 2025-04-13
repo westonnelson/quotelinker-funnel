@@ -32,62 +32,69 @@ export async function POST(request: Request) {
 
     if (supabaseError) throw supabaseError
 
-    // Send to HubSpot
-    const hubspotData = {
-      fields: [
-        { name: 'firstname', value: data.firstName },
-        { name: 'lastname', value: data.lastName },
-        { name: 'email', value: data.email },
-        { name: 'phone', value: data.phone },
-        { name: 'age', value: data.age },
-        { name: 'gender', value: data.gender },
-        { name: 'health_status', value: data.healthStatus },
-        { name: 'coverage_amount', value: data.coverageAmount },
-        { name: 'term_length', value: data.termLength },
-        { name: 'tobacco_use', value: data.tobaccoUse },
-        { name: 'occupation', value: data.occupation },
-        { name: 'annual_income', value: data.annualIncome }
-      ],
-      context: {
-        pageUri: 'https://quotelinker.com/term-life',
-        pageName: 'Term Life Insurance Quote'
+    // Send to HubSpot via Zapier
+    if (process.env.ZAPIER_WEBHOOK_URL) {
+      const hubspotData = {
+        fields: [
+          { name: 'firstname', value: data.firstName },
+          { name: 'lastname', value: data.lastName },
+          { name: 'email', value: data.email },
+          { name: 'phone', value: data.phone },
+          { name: 'age', value: data.age },
+          { name: 'gender', value: data.gender },
+          { name: 'health_status', value: data.healthStatus },
+          { name: 'coverage_amount', value: data.coverageAmount },
+          { name: 'term_length', value: data.termLength },
+          { name: 'tobacco_use', value: data.tobaccoUse },
+          { name: 'occupation', value: data.occupation },
+          { name: 'annual_income', value: data.annualIncome }
+        ],
+        context: {
+          pageUri: 'https://quotelinker.com/term-life',
+          pageName: 'Term Life Insurance Quote'
+        }
+      }
+
+      const zapierResponse = await fetch(process.env.ZAPIER_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(hubspotData)
+      })
+
+      if (!zapierResponse.ok) {
+        console.error('Failed to send to Zapier:', await zapierResponse.text())
       }
     }
 
-    // Send to HubSpot via Zapier webhook
-    const zapierResponse = await fetch(process.env.ZAPIER_WEBHOOK_URL!, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(hubspotData)
-    })
-
-    if (!zapierResponse.ok) throw new Error('Failed to send to HubSpot')
-
     // Send notification email
-    const emailData = {
-      from: process.env.EMAIL_FROM,
-      to: process.env.EMAIL_TO,
-      subject: 'New Quote Request',
-      html: `
-        <h2>New Quote Request</h2>
-        <p><strong>Name:</strong> ${data.firstName} ${data.lastName}</p>
-        <p><strong>Email:</strong> ${data.email}</p>
-        <p><strong>Phone:</strong> ${data.phone}</p>
-        <p><strong>Coverage Amount:</strong> $${parseInt(data.coverageAmount).toLocaleString()}</p>
-        <p><strong>Term Length:</strong> ${data.termLength} Years</p>
-      `
+    if (process.env.RESEND_API_KEY) {
+      const emailData = {
+        from: process.env.EMAIL_FROM,
+        to: process.env.EMAIL_TO,
+        subject: 'New Quote Request',
+        html: `
+          <h2>New Quote Request</h2>
+          <p><strong>Name:</strong> ${data.firstName} ${data.lastName}</p>
+          <p><strong>Email:</strong> ${data.email}</p>
+          <p><strong>Phone:</strong> ${data.phone}</p>
+          <p><strong>Coverage Amount:</strong> $${parseInt(data.coverageAmount).toLocaleString()}</p>
+          <p><strong>Term Length:</strong> ${data.termLength} Years</p>
+        `
+      }
+
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(emailData)
+      })
+
+      if (!emailResponse.ok) {
+        console.error('Failed to send email:', await emailResponse.text())
+      }
     }
-
-    const emailResponse = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(emailData)
-    })
-
-    if (!emailResponse.ok) throw new Error('Failed to send notification email')
 
     return NextResponse.json({ success: true })
   } catch (error) {
