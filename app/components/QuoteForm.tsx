@@ -403,6 +403,242 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
               </div>
             )}
 
+            {currentStep === 2 && (
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Age <span className="text-red-500">*</span>
+                      <ReactTooltip id="age" className="max-w-xs" />
+                      <QuestionMarkCircleIcon
+                        data-tooltip-id="age"
+                        data-tooltip-content={tooltips.age}
+                        className="inline-block w-4 h-4 ml-1 text-gray-400"
+                      />
+                    </label>
+                    <input
+                      type="number"
+                      name="age"
+                      value={formData.age}
+                      onChange={handleChange}
+                      min="18"
+                      max="85"
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                    />
+                    {validationErrors.age && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.age}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700">
+                      Gender <span className="text-red-500">*</span>
+                      <ReactTooltip id="gender" className="max-w-xs" />
+                      <QuestionMarkCircleIcon
+                        data-tooltip-id="gender"
+                        data-tooltip-content={tooltips.gender}
+                        className="inline-block w-4 h-4 ml-1 text-gray-400"
+                      />
+                    </label>
+                    <select
+                      name="gender"
+                      value={formData.gender}
+                      onChange={handleChange}
+                      className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
+                    {validationErrors.gender && (
+                      <p className="mt-1 text-sm text-red-600">{validationErrors.gender}</p>
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Health Status <span className="text-red-500">*</span>
+                    <ReactTooltip id="healthStatus" className="max-w-xs" />
+                    <QuestionMarkCircleIcon
+                      data-tooltip-id="healthStatus"
+                      data-tooltip-content={tooltips.healthStatus}
+                      className="inline-block w-4 h-4 ml-1 text-gray-400"
+                    />
+                  </label>
+                  <select
+                    name="healthStatus"
+                    value={formData.healthStatus}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                  >
+                    <option value="">Select Health Status</option>
+                    <option value="excellent">Excellent</option>
+                    <option value="good">Good</option>
+                    <option value="fair">Fair</option>
+                    <option value="poor">Poor</option>
+                  </select>
+                  {validationErrors.healthStatus && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.healthStatus}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Tobacco Use <span className="text-red-500">*</span>
+                    <ReactTooltip id="tobaccoUse" className="max-w-xs" />
+                    <QuestionMarkCircleIcon
+                      data-tooltip-id="tobaccoUse"
+                      data-tooltip-content={tooltips.tobaccoUse}
+                      className="inline-block w-4 h-4 ml-1 text-gray-400"
+                    />
+                  </label>
+                  <div className="mt-2 space-x-4">
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
+                        name="tobaccoUse"
+                        value="no"
+                        checked={formData.tobaccoUse === 'no'}
+                        onChange={handleChange}
+                        className="form-radio h-4 w-4 text-cyan-500 focus:ring-cyan-500"
+                      />
+                      <span className="ml-2">No</span>
+                    </label>
+                    <label className="inline-flex items-center">
+                      <input
+                        type="radio"
+                        name="tobaccoUse"
+                        value="yes"
+                        checked={formData.tobaccoUse === 'yes'}
+                        onChange={handleChange}
+                        className="form-radio h-4 w-4 text-cyan-500 focus:ring-cyan-500"
+                      />
+                      <span className="ml-2">Yes</span>
+                    </label>
+                  </div>
+                  {validationErrors.tobaccoUse && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.tobaccoUse}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {currentStep === 3 && (
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Coverage Amount <span className="text-red-500">*</span>
+                    <ReactTooltip id="coverageAmount" className="max-w-xs" />
+                    <QuestionMarkCircleIcon
+                      data-tooltip-id="coverageAmount"
+                      data-tooltip-content={tooltips.coverageAmount}
+                      className="inline-block w-4 h-4 ml-1 text-gray-400"
+                    />
+                  </label>
+                  <select
+                    name="coverageAmount"
+                    value={formData.coverageAmount}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                  >
+                    <option value="">Select Coverage Amount</option>
+                    <option value="100000">$100,000</option>
+                    <option value="250000">$250,000</option>
+                    <option value="500000">$500,000</option>
+                    <option value="750000">$750,000</option>
+                    <option value="1000000">$1,000,000</option>
+                    <option value="2000000">$2,000,000+</option>
+                  </select>
+                  {validationErrors.coverageAmount && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.coverageAmount}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Term Length <span className="text-red-500">*</span>
+                    <ReactTooltip id="termLength" className="max-w-xs" />
+                    <QuestionMarkCircleIcon
+                      data-tooltip-id="termLength"
+                      data-tooltip-content={tooltips.termLength}
+                      className="inline-block w-4 h-4 ml-1 text-gray-400"
+                    />
+                  </label>
+                  <select
+                    name="termLength"
+                    value={formData.termLength}
+                    onChange={handleChange}
+                    className="mt-1 block w-full rounded-lg border-gray-300 shadow-sm focus:border-cyan-500 focus:ring-cyan-500"
+                  >
+                    <option value="">Select Term Length</option>
+                    <option value="10">10 Years</option>
+                    <option value="20">20 Years</option>
+                    <option value="30">30 Years</option>
+                  </select>
+                  {validationErrors.termLength && (
+                    <p className="mt-1 text-sm text-red-600">{validationErrors.termLength}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    Annual Income
+                    <ReactTooltip id="annualIncome" className="max-w-xs" />
+                    <QuestionMarkCircleIcon
+                      data-tooltip-id="annualIncome"
+                      data-tooltip-content={tooltips.annualIncome}
+                      className="inline-block w-4 h-4 ml-1 text-gray-400"
+                    />
+                  </label>
+                  <div className="mt-1 relative rounded-lg shadow-sm">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 sm:text-sm">$</span>
+                    </div>
+                    <input
+                      type="text"
+                      name="annualIncome"
+                      value={formData.annualIncome}
+                      onChange={handleAnnualIncomeChange}
+                      placeholder="75,000"
+                      className="block w-full pl-7 pr-12 rounded-lg border-gray-300 focus:border-cyan-500 focus:ring-cyan-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-6">
+                  <div className="flex items-start">
+                    <div className="flex items-center h-5">
+                      <input
+                        id="legal-consent"
+                        name="legal-consent"
+                        type="checkbox"
+                        checked={legalConsent}
+                        onChange={(e) => setLegalConsent(e.target.checked)}
+                        className="h-4 w-4 text-cyan-500 focus:ring-cyan-500 border-gray-300 rounded"
+                      />
+                    </div>
+                    <div className="ml-3">
+                      <label htmlFor="legal-consent" className="text-sm text-gray-700">
+                        I agree to be contacted via phone, text, or email. I have read and agree to the{' '}
+                        <Link href="/privacy-policy" className="text-cyan-500 hover:text-cyan-600">
+                          Privacy Policy
+                        </Link>{' '}
+                        and{' '}
+                        <Link href="/terms-of-service" className="text-cyan-500 hover:text-cyan-600">
+                          Terms of Service
+                        </Link>
+                        .
+                      </label>
+                    </div>
+                  </div>
+                  {!legalConsent && error && (
+                    <p className="mt-2 text-sm text-red-600">{error}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Navigation Buttons */}
             <div className="flex justify-between mt-8">
               {currentStep > 1 && (
@@ -414,15 +650,37 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                   Back
                 </button>
               )}
-              <button
-                type="button"
-                onClick={handleNext}
-                className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-cyan-500 hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 ${
-                  currentStep === 1 ? 'ml-auto' : ''
-                }`}
-              >
-                {currentStep === 3 ? 'Get Your Quote' : 'Next'}
-              </button>
+              {currentStep < 3 ? (
+                <button
+                  type="button"
+                  onClick={handleNext}
+                  className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-cyan-500 hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 ${
+                    currentStep === 1 ? 'ml-auto' : ''
+                  }`}
+                >
+                  Next
+                </button>
+              ) : (
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !legalConsent}
+                  className={`inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-lg shadow-sm text-white bg-cyan-500 hover:bg-cyan-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-cyan-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    currentStep === 1 ? 'ml-auto' : ''
+                  }`}
+                >
+                  {isSubmitting ? (
+                    <>
+                      <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      </svg>
+                      Processing...
+                    </>
+                  ) : (
+                    'Get Your Quote'
+                  )}
+                </button>
+              )}
             </div>
           </form>
         </div>
