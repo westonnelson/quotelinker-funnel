@@ -101,8 +101,8 @@ export async function POST(request: Request) {
       health_status: formData.healthStatus,
       coverage_amount: parseInt(formData.coverageAmount, 10),
       term_length: parseInt(formData.termLength, 10),
-      tobacco_use: formData.tobaccoUse || false,
-      occupation: formData.occupation || null,
+      tobacco_use: formData.tobaccoUse ? 'yes' : 'no',
+      occupation: formData.occupation || 'Not specified',
       annual_income: formData.annualIncome ? parseInt(formData.annualIncome, 10) : null,
       source: 'term_life_quote_form',
       created_at: new Date().toISOString()
