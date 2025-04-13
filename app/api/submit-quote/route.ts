@@ -16,17 +16,33 @@ export async function POST(request: Request) {
     }
 
     const supabase = createClient(supabaseUrl, supabaseAnonKey)
-    const data = await request.json()
-    console.log('Received form data:', data)
+    const formData = await request.json()
+    console.log('Received form data:', formData)
+
+    // Map form data to Supabase schema
+    const leadData = {
+      first_name: formData.firstName,
+      last_name: formData.lastName,
+      email: formData.email,
+      phone: formData.phone,
+      age: parseInt(formData.age, 10),
+      gender: formData.gender,
+      health_status: formData.healthStatus,
+      coverage_amount: parseInt(formData.coverageAmount, 10),
+      term_length: parseInt(formData.termLength, 10),
+      tobacco_use: formData.tobaccoUse,
+      occupation: formData.occupation,
+      annual_income: formData.annualIncome ? parseInt(formData.annualIncome, 10) : null,
+      created_at: new Date().toISOString(),
+      source: 'term_life_quote_form'
+    }
+
+    console.log('Mapped lead data:', leadData)
 
     // Insert into Supabase
     const { data: supabaseData, error: supabaseError } = await supabase
       .from('leads')
-      .insert([{
-        ...data,
-        created_at: new Date().toISOString(),
-        source: 'term_life_quote_form'
-      }])
+      .insert([leadData])
       .select()
 
     if (supabaseError) {
@@ -43,7 +59,7 @@ export async function POST(request: Request) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            ...data,
+            ...formData,
             source: 'term_life_quote_form',
             timestamp: new Date().toISOString()
           })
@@ -70,14 +86,14 @@ export async function POST(request: Request) {
           subject: 'New Quote Request',
           html: `
             <h1>New Quote Request</h1>
-            <p>Name: ${data.firstName} ${data.lastName}</p>
-            <p>Email: ${data.email}</p>
-            <p>Phone: ${data.phone}</p>
-            <p>Age: ${data.age}</p>
-            <p>Gender: ${data.gender}</p>
-            <p>Health Status: ${data.healthStatus}</p>
-            <p>Coverage Amount: $${data.coverageAmount}</p>
-            <p>Term Length: ${data.termLength} years</p>
+            <p>Name: ${formData.firstName} ${formData.lastName}</p>
+            <p>Email: ${formData.email}</p>
+            <p>Phone: ${formData.phone}</p>
+            <p>Age: ${formData.age}</p>
+            <p>Gender: ${formData.gender}</p>
+            <p>Health Status: ${formData.healthStatus}</p>
+            <p>Coverage Amount: $${formData.coverageAmount}</p>
+            <p>Term Length: ${formData.termLength} years</p>
             <p>Source: Term Life Quote Form</p>
             <p>Timestamp: ${new Date().toISOString()}</p>
           `
