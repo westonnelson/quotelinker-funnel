@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
@@ -16,6 +17,10 @@ interface LeadData {
   term_length: string;
   tobacco_use: string;
   source: string;
+  occupation?: string;
+  age?: string;
+  health_status?: string;
+  annual_income?: string;
 }
 
 // Initialize Supabase client with service role key for admin operations
