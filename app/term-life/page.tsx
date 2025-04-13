@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import Image from 'next/image'
+import { LinkIcon, ShieldCheckIcon, StarIcon } from '@heroicons/react/24/solid'
 
 declare global {
   interface Window {
@@ -89,14 +89,7 @@ export default function TermLifePage() {
       <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-12">
           <div className="flex justify-center mb-6">
-            <div className="relative w-16 h-16 float-animation">
-              <Image
-                src="/q-logo.png"
-                alt="QuoteLinker"
-                fill
-                className="object-contain"
-              />
-            </div>
+            <LinkIcon className="h-16 w-16 text-[#00F2F2] animate-pulse" />
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-900 mb-4">
             Get Your <span className="text-[#00F2F2]">Term Life</span> Quote
@@ -110,14 +103,17 @@ export default function TermLifePage() {
         <div className="bg-white rounded-2xl shadow-xl p-8 neon-glow">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
             <div className="text-center p-4 rounded-lg bg-[#F8FAFB]">
+              <LinkIcon className="h-8 w-8 mx-auto mb-2 text-[#00F2F2]" />
               <div className="text-[#00F2F2] text-2xl font-bold mb-2">1M+</div>
               <div className="text-gray-600">Quotes Generated</div>
             </div>
             <div className="text-center p-4 rounded-lg bg-[#F8FAFB]">
+              <ShieldCheckIcon className="h-8 w-8 mx-auto mb-2 text-[#00F2F2]" />
               <div className="text-[#00F2F2] text-2xl font-bold mb-2">98%</div>
               <div className="text-gray-600">Customer Satisfaction</div>
             </div>
             <div className="text-center p-4 rounded-lg bg-[#F8FAFB]">
+              <StarIcon className="h-8 w-8 mx-auto mb-2 text-[#00F2F2]" />
               <div className="text-[#00F2F2] text-2xl font-bold mb-2">5★</div>
               <div className="text-gray-600">Average Rating</div>
             </div>
