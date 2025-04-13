@@ -4,15 +4,24 @@ import { useState, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Tooltip as ReactTooltip } from 'react-tooltip'
 import { QuestionMarkCircleIcon } from '@heroicons/react/24/outline'
-import { InputMask } from 'react-input-mask'
+import InputMask from 'react-input-mask-next'
 import Link from 'next/link'
 
 declare global {
   interface Window {
-    hubspot?: {
+    analytics: {
       track: (event: string, properties: Record<string, any>) => void;
     };
-    gtag?: (command: string, action: string, params: any) => void;
+    gtag: (
+      command: "config" | "event" | "set", 
+      action: string, 
+      params?: { 
+        [key: string]: any; 
+        event_category?: string; 
+        event_label?: string; 
+        value?: number; 
+      }
+    ) => void;
   }
 }
 
@@ -49,9 +58,9 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
   const [legalConsent, setLegalConsent] = useState(false)
   
   // Get UTM parameters
-  const utmSource = searchParams.get('utm_source') || ''
-  const utmMedium = searchParams.get('utm_medium') || ''
-  const utmCampaign = searchParams.get('utm_campaign') || ''
+  const utmSource = searchParams?.get('utm_source') || ''
+  const utmMedium = searchParams?.get('utm_medium') || ''
+  const utmCampaign = searchParams?.get('utm_campaign') || ''
   
   const [formData, setFormData] = useState<FormData>({
     firstName: '',
@@ -85,70 +94,101 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
     annualIncome: 'Helps recommend appropriate coverage'
   }
 
-  const validateField = (name: string, value: string) => {
-    switch (name) {
-      case 'firstName':
-        return value.trim() ? '' : 'First name is required'
-      case 'lastName':
-        return value.trim() ? '' : 'Last name is required'
+  const validateField = (field: string, value: any): string | undefined => {
+    if (!value) {
+      return 'This field is required'
+    }
+
+    switch (field) {
       case 'email':
-        return value.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/) ? '' : 'Please enter a valid email address'
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          return 'Please enter a valid email address'
+        }
+        break
       case 'phone':
-        // Allow various phone formats but ensure it has at least 10 digits
-        const digitsOnly = value.replace(/\D/g, '')
-        return digitsOnly.length >= 10 ? '' : 'Please enter a valid phone number with at least 10 digits'
+        const phoneDigits = value.replace(/\D/g, '')
+        if (phoneDigits.length < 10) {
+          return 'Please enter a valid phone number'
+        }
+        break
       case 'age':
         const age = parseInt(value)
-        return !isNaN(age) && age >= 18 && age <= 85 ? '' : 'Age must be between 18 and 85'
-      case 'gender':
-        return value ? '' : 'Please select your gender'
-      case 'healthStatus':
-        return value ? '' : 'Please select your health status'
+        if (isNaN(age) || age < 18 || age > 85) {
+          return 'Age must be between 18 and 85'
+        }
+        break
       case 'coverageAmount':
-        return value ? '' : 'Please select coverage amount'
-      case 'termLength':
-        return value ? '' : 'Please select term length'
-      case 'tobaccoUse':
-        return value ? '' : 'Please select if you use tobacco'
-      default:
-        return ''
+        const amount = parseInt(value)
+        if (isNaN(amount) || amount < 100000) {
+          return 'Coverage amount must be at least $100,000'
+        }
+        break
     }
+    return undefined
   }
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target
-    setFormData(prev => ({ ...prev, [name]: value }))
-    setError('')
-    
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }))
+
     // Real-time validation
     const fieldError = validateField(name, value)
     setValidationErrors(prev => ({
       ...prev,
-      [name]: fieldError
+      [name]: fieldError || ''
     }))
   }
 
-  const validateStep = (step: number) => {
-    const stepFields = {
-      1: ['firstName', 'lastName', 'email', 'phone'],
-      2: ['age', 'gender', 'healthStatus', 'tobaccoUse'],
-      3: ['coverageAmount', 'termLength']
-    }[step] || []
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData(prev => ({
+      ...prev,
+      phone: e.target.value
+    }))
 
+    // Real-time validation
+    const fieldError = validateField('phone', e.target.value)
+    setValidationErrors(prev => ({
+      ...prev,
+      phone: fieldError || ''
+    }))
+  }
+
+  const handleAnnualIncomeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numbers
+    const value = e.target.value.replace(/\D/g, '')
+    setFormData(prev => ({
+      ...prev,
+      annualIncome: value
+    }))
+
+    // Real-time validation
+    const fieldError = validateField('annualIncome', value)
+    setValidationErrors(prev => ({
+      ...prev,
+      annualIncome: fieldError || ''
+    }))
+  }
+
+  const validateStep = (stepFields: string[]): Record<string, string> => {
     const errors: Record<string, string> = {}
     stepFields.forEach(field => {
-      const error = validateField(field, formData[field as keyof FormData])
+      const value = formData[field as keyof FormData]
+      const error = validateField(field, value)
       if (error) errors[field] = error
     })
-
-    setValidationErrors(errors)
-    return Object.keys(errors).length === 0
+    return errors
   }
 
   const handleNext = () => {
-    if (validateStep(currentStep)) {
+    const errors = validateStep(currentStep === 1 ? ['firstName', 'lastName', 'email', 'phone'] : ['age', 'gender', 'healthStatus', 'tobaccoUse'])
+    if (Object.keys(errors).length === 0) {
       setCurrentStep(prev => prev + 1)
       setError('')
+    } else {
+      setValidationErrors(errors)
     }
   }
 
@@ -159,7 +199,11 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!validateStep(currentStep)) return
+    const errors = validateStep(currentStep === 1 ? ['firstName', 'lastName', 'email', 'phone'] : ['age', 'gender', 'healthStatus', 'tobaccoUse'])
+    if (Object.keys(errors).length > 0) {
+      setValidationErrors(errors)
+      return
+    }
     if (!legalConsent) {
       setError('You must agree to the Privacy Policy and Terms of Service to continue.')
       return
@@ -193,8 +237,8 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
       }
 
       // Track HubSpot event if available
-      if (typeof window !== 'undefined' && window.hubspot) {
-        window.hubspot.track('Quote Request Submitted', {
+      if (typeof window !== 'undefined' && window.analytics) {
+        window.analytics.track('Quote Request Submitted', {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: formData.email,
@@ -266,7 +310,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                   type="text"
                   name="firstName"
                   value={formData.firstName}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
                   placeholder="John"
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
                     validationErrors.firstName ? 'border-red-500' : 'border-gray-300'
@@ -289,7 +333,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                   type="text"
                   name="lastName"
                   value={formData.lastName}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
                   placeholder="Doe"
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
                     validationErrors.lastName ? 'border-red-500' : 'border-gray-300'
@@ -313,7 +357,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                 type="email"
                 name="email"
                 value={formData.email}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 placeholder="john.doe@example.com"
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
                   validationErrors.email ? 'border-red-500' : 'border-gray-300'
@@ -334,20 +378,12 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
               </label>
               <InputMask
                 mask="(999) 999-9999"
-                maskChar={null}
                 value={formData.phone}
-                onChange={(e) => handleInputChange({ target: { name: 'phone', value: e.target.value } })}
-                className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                onChange={handlePhoneChange}
+                placeholder="(555) 555-5555"
+                className={`w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 ${
                   validationErrors.phone ? 'border-red-500' : 'border-gray-300'
                 }`}
-                placeholder="(555) 123-4567"
-                alwaysShowMask={false}
-                beforeMaskedStateChange={(state) => {
-                  return {
-                    ...state,
-                    value: state.value.replace(/\D/g, '')
-                  }
-                }}
               />
               {validationErrors.phone && (
                 <p className="mt-1 text-sm text-red-500">{validationErrors.phone}</p>
@@ -372,7 +408,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                   type="number"
                   name="age"
                   value={formData.age}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
                   placeholder="35"
                   min="18"
                   max="85"
@@ -396,7 +432,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                 <select
                   name="gender"
                   value={formData.gender}
-                  onChange={handleInputChange}
+                  onChange={handleChange}
                   className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
                     validationErrors.gender ? 'border-red-500' : 'border-gray-300'
                   }`}
@@ -423,7 +459,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
               <select
                 name="healthStatus"
                 value={formData.healthStatus}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
                   validationErrors.healthStatus ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -454,7 +490,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                     name="tobaccoUse"
                     value="no"
                     checked={formData.tobaccoUse === 'no'}
-                    onChange={handleInputChange}
+                    onChange={handleChange}
                     className="form-radio h-4 w-4 text-[#00F2F2] focus:ring-[#00F2F2]"
                   />
                   <span className="ml-2 text-gray-700">No</span>
@@ -465,7 +501,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                     name="tobaccoUse"
                     value="yes"
                     checked={formData.tobaccoUse === 'yes'}
-                    onChange={handleInputChange}
+                    onChange={handleChange}
                     className="form-radio h-4 w-4 text-[#00F2F2] focus:ring-[#00F2F2]"
                   />
                   <span className="ml-2 text-gray-700">Yes</span>
@@ -492,7 +528,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
               <select
                 name="coverageAmount"
                 value={formData.coverageAmount}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
                   validationErrors.coverageAmount ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -521,7 +557,7 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
               <select
                 name="termLength"
                 value={formData.termLength}
-                onChange={handleInputChange}
+                onChange={handleChange}
                 className={`w-full px-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
                   validationErrors.termLength ? 'border-red-500' : 'border-gray-300'
                 }`}
@@ -548,25 +584,27 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <span className="text-gray-500 sm:text-sm">$</span>
                 </div>
-                <input
-                  type="text"
-                  name="annualIncome"
-                  value={formData.annualIncome}
-                  onChange={(e) => {
-                    // Only allow numbers
-                    const value = e.target.value.replace(/\D/g, '')
-                    handleInputChange({ target: { name: 'annualIncome', value } })
-                  }}
-                  placeholder="75,000"
-                  className={`w-full pl-7 pr-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
-                    validationErrors.annualIncome ? 'border-red-500' : 'border-gray-300'
-                  }`}
-                />
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    name="annualIncome"
+                    value={formData.annualIncome}
+                    onChange={handleAnnualIncomeChange}
+                    placeholder="75,000"
+                    className={`w-full pl-7 pr-4 py-2 border rounded-lg focus:ring-[#00F2F2] focus:border-[#00F2F2] ${
+                      validationErrors.annualIncome ? 'border-red-500' : 'border-gray-300'
+                    }`}
+                  />
+                  <QuestionMarkCircleIcon
+                    className="h-5 w-5 ml-2 text-gray-400 cursor-help"
+                    data-tooltip-id="income-tooltip"
+                  />
+                </div>
               </div>
               {validationErrors.annualIncome && (
                 <p className="mt-1 text-sm text-red-500">{validationErrors.annualIncome}</p>
               )}
-              <Tooltip id="income-tooltip" content={tooltips.annualIncome} />
+              <ReactTooltip id="income-tooltip" content={tooltips.annualIncome} />
             </div>
             <div className="relative mt-6">
               <div className="flex items-start">
