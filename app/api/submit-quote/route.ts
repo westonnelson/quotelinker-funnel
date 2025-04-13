@@ -9,6 +9,18 @@ const resendApiKey = process.env.RESEND_API_KEY
 
 export async function POST(request: Request) {
   try {
+    // Set CORS headers
+    const headers = {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    }
+
+    // Handle preflight request
+    if (request.method === 'OPTIONS') {
+      return new NextResponse(null, { headers, status: 200 })
+    }
+
     // Validate environment variables
     if (!supabaseUrl || !supabaseAnonKey) {
       console.error('Missing Supabase configuration:', { supabaseUrl, supabaseAnonKey })
@@ -46,14 +58,11 @@ export async function POST(request: Request) {
       .select()
 
     if (supabaseError) {
-      console.error('Supabase error:', {
-        error: supabaseError,
-        message: supabaseError.message,
-        details: supabaseError.details,
-        hint: supabaseError.hint,
-        code: supabaseError.code
-      })
-      throw new Error(`Failed to save lead data: ${supabaseError.message}`)
+      console.error('Supabase error:', supabaseError)
+      return NextResponse.json(
+        { success: false, error: 'Failed to save lead data', details: supabaseError },
+        { status: 500, headers }
+      )
     }
 
     console.log('Successfully saved to Supabase:', supabaseData)
@@ -72,12 +81,7 @@ export async function POST(request: Request) {
         })
         
         if (!zapierResponse.ok) {
-          const errorText = await zapierResponse.text()
-          console.error('Zapier webhook error:', {
-            status: zapierResponse.status,
-            statusText: zapierResponse.statusText,
-            error: errorText
-          })
+          console.error('Zapier webhook error:', await zapierResponse.text())
         } else {
           console.log('Successfully sent to Zapier webhook')
         }
@@ -111,33 +115,33 @@ export async function POST(request: Request) {
         })
         console.log('Successfully sent notification email:', emailResult)
       } catch (emailError) {
-        console.error('Email notification error:', {
-          error: emailError,
-          message: emailError instanceof Error ? emailError.message : String(emailError)
-        })
+        console.error('Email notification error:', emailError)
         // Don't throw here, continue with response
       }
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      message: 'Quote request submitted successfully',
-      data: supabaseData
-    })
+    return NextResponse.json(
+      { 
+        success: true, 
+        message: 'Quote request submitted successfully',
+        data: supabaseData
+      },
+      { status: 200, headers }
+    )
 
   } catch (error) {
-    console.error('API route error:', {
-      error,
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined
-    })
+    console.error('API route error:', error)
     return NextResponse.json(
       { 
         success: false, 
         error: error instanceof Error ? error.message : 'Internal server error',
         details: error instanceof Error ? error.stack : undefined
       },
-      { status: 500 }
+      { status: 500, headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type',
+      } }
     )
   }
 } 
