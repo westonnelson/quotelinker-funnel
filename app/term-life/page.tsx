@@ -34,6 +34,8 @@ export default function TermLifePage() {
     setError('')
 
     try {
+      console.log('Starting form submission...')
+      
       // Submit to Supabase
       const { error: supabaseError } = await supabase
         .from('leads')
@@ -44,41 +46,64 @@ export default function TermLifePage() {
           term_length: parseInt(formData.term_length)
         }])
 
-      if (supabaseError) throw supabaseError
+      if (supabaseError) {
+        console.error('Supabase error:', supabaseError)
+        throw supabaseError
+      }
+
+      console.log('Successfully submitted to Supabase')
 
       // Track form submission in HubSpot
       if (typeof window !== 'undefined' && window._hsq) {
-        window._hsq.push(['identify', {
-          email: formData.email,
-          firstname: formData.first_name,
-          lastname: formData.last_name,
-          phone: formData.phone,
-          age: formData.age,
-          gender: formData.gender,
-          coverage_amount: formData.coverage_amount,
-          term_length: formData.term_length,
-          health_status: formData.health_status
-        }])
-        
-        window._hsq.push(['trackEvent', {
-          id: 'term_life_quote_submission',
-          value: parseInt(formData.coverage_amount)
-        }])
+        console.log('Submitting to HubSpot...')
+        try {
+          window._hsq.push(['identify', {
+            email: formData.email,
+            firstname: formData.first_name,
+            lastname: formData.last_name,
+            phone: formData.phone,
+            age: formData.age,
+            gender: formData.gender,
+            coverage_amount: formData.coverage_amount,
+            term_length: formData.term_length,
+            health_status: formData.health_status
+          }])
+          
+          window._hsq.push(['trackEvent', {
+            id: 'term_life_quote_submission',
+            value: parseInt(formData.coverage_amount)
+          }])
+          console.log('Successfully submitted to HubSpot')
+        } catch (hubspotError) {
+          console.error('HubSpot error:', hubspotError)
+          // Don't throw here, continue with other tracking
+        }
+      } else {
+        console.warn('HubSpot tracking not available')
       }
 
       // Track conversion in Google Analytics
       if (typeof window !== 'undefined' && window.dataLayer) {
-        window.dataLayer.push({
-          'event': 'form_submission',
-          'form_name': 'term_life_quote',
-          'conversion_value': parseInt(formData.coverage_amount)
-        })
+        console.log('Submitting to Google Analytics...')
+        try {
+          window.dataLayer.push({
+            'event': 'form_submission',
+            'form_name': 'term_life_quote',
+            'conversion_value': parseInt(formData.coverage_amount)
+          })
+          console.log('Successfully submitted to Google Analytics')
+        } catch (gaError) {
+          console.error('Google Analytics error:', gaError)
+          // Don't throw here, continue with navigation
+        }
+      } else {
+        console.warn('Google Analytics not available')
       }
 
       router.push('/thank-you')
     } catch (err) {
+      console.error('Form submission error:', err)
       setError('Something went wrong. Please try again.')
-      console.error(err)
     } finally {
       setLoading(false)
     }

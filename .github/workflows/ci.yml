@@ -27,6 +27,16 @@ jobs:
       env:
         NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+        NEXT_PUBLIC_GTM_ID: ${{ secrets.NEXT_PUBLIC_GTM_ID }}
+        NEXT_PUBLIC_GA4_ID: ${{ secrets.NEXT_PUBLIC_GA4_ID }}
+        NEXT_PUBLIC_CALENDLY_LINK: ${{ secrets.NEXT_PUBLIC_CALENDLY_LINK }}
+        NEXT_PUBLIC_CALENDLY_EMBED_URL: ${{ secrets.NEXT_PUBLIC_CALENDLY_EMBED_URL }}
+        RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        EMAIL_FROM: ${{ secrets.EMAIL_FROM }}
+        EMAIL_TO: ${{ secrets.EMAIL_TO }}
+        ZAPIER_WEBHOOK_URL: ${{ secrets.ZAPIER_WEBHOOK_URL }}
+        QUOTE_FUNNEL_NAME: 'term_life'
+        QUOTE_BRAND: 'quotelinker'
 
     - name: Deploy to Vercel
       if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -34,4 +44,4 @@ jobs:
         VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
         VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
         VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
-      run: npx vercel deploy --prod --token ${VERCEL_TOKEN} 
+      run: npx vercel deploy --prod --token ${VERCEL_TOKEN} --yes 
