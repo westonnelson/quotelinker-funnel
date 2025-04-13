@@ -53,6 +53,20 @@ jobs:
           NEXT_PUBLIC_CALENDLY_LINK: ${{ secrets.NEXT_PUBLIC_CALENDLY_LINK }}
           NEXT_PUBLIC_CALENDLY_EMBED_URL: ${{ secrets.NEXT_PUBLIC_CALENDLY_EMBED_URL }}
 
+      # Debug step to verify environment variables (without exposing sensitive values)
+      - name: Debug Environment Variables
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          echo "Checking environment variables..."
+          echo "SUPABASE_URL is set: ${{ secrets.SUPABASE_URL != '' }}"
+          echo "VERCEL_TOKEN is set: ${{ secrets.VERCEL_TOKEN != '' }}"
+          echo "VERCEL_ORG_ID is set: ${{ secrets.VERCEL_ORG_ID != '' }}"
+          echo "VERCEL_PROJECT_ID is set: ${{ secrets.VERCEL_PROJECT_ID != '' }}"
+          echo "RESEND_API_KEY is set: ${{ secrets.RESEND_API_KEY != '' }}"
+          echo "EMAIL_FROM is set: ${{ secrets.EMAIL_FROM != '' }}"
+          echo "EMAIL_TO is set: ${{ secrets.EMAIL_TO != '' }}"
+          echo "ZAPIER_WEBHOOK_URL is set: ${{ secrets.ZAPIER_WEBHOOK_URL != '' }}"
+
       - name: Deploy to Vercel
         uses: amondnet/vercel-action@v25
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -61,7 +75,7 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod'
-          working-directory: ./ 
+          working-directory: ./
           scope: ${{ secrets.VERCEL_ORG_ID }}
           github-comment: false
         env:
