@@ -12,18 +12,9 @@ export const metadata = {
   metadataBase: new URL('https://quotelinker.com'),
   openGraph: {
     title: 'QuoteLinker - Simple, Affordable Life Insurance',
-    description: 'Get instant life insurance quotes and connect with licensed agents. QuoteLinker makes insurance simple, affordable, and accessible for everyone.',
+    description: 'Get instant life insurance quotes and connect with licensed agents.',
     url: 'https://quotelinker.com',
     siteName: 'QuoteLinker',
-    images: [
-      {
-        url: '/og-image.jpg',
-        width: 1200,
-        height: 630,
-        alt: 'QuoteLinker - Life Insurance Made Simple',
-      },
-    ],
-    locale: 'en_US',
     type: 'website',
   },
   twitter: {
@@ -65,6 +56,17 @@ export default function RootLayout({
         <meta name="msapplication-TileColor" content="#00F2F2" />
         <meta name="theme-color" content="#ffffff" />
         
+        {/* Google Tag Manager */}
+        <Script id="gtm" strategy="afterInteractive">
+          {`
+            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+            })(window,document,'script','dataLayer','${process.env.NEXT_PUBLIC_GTM_ID}');
+          `}
+        </Script>
+
         {/* HubSpot Tracking Code */}
         <Script
           src={`//js.hs-scripts.com/242421918.js`}
@@ -101,6 +103,16 @@ export default function RootLayout({
         </Script>
       </head>
       <body className={inter.className}>
+        {/* Google Tag Manager (noscript) */}
+        <noscript>
+          <iframe
+            src={`https://www.googletagmanager.com/ns.html?id=${process.env.NEXT_PUBLIC_GTM_ID}`}
+            height="0"
+            width="0"
+            style={{ display: 'none', visibility: 'hidden' }}
+          />
+        </noscript>
+
         <div className="min-h-screen flex flex-col">
           <Header />
           <main className="flex-grow">
