@@ -33,53 +33,21 @@ export async function OPTIONS() {
 export async function GET() {
   try {
     console.log('Testing Supabase connection');
-    console.log('Supabase config:', {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-    });
     
-    // Test basic connection
-    const { data: testData, error: testError } = await supabase
-      .from('_prisma_migrations')
-      .select('*')
-      .limit(1);
-
-    if (testError) {
-      console.error('Basic connection test error:', testError);
-      throw testError;
-    }
-
-    console.log('Basic connection successful');
-
     // List all tables in the public schema
     const { data: tables, error: tablesError } = await supabase
-      .from('information_schema.tables')
-      .select('table_name')
-      .eq('table_schema', 'public');
-
-    if (tablesError) {
-      console.error('Error fetching tables:', tablesError);
-      throw tablesError;
-    }
-
-    console.log('Available tables:', tables);
-
-    // Test leads table if it exists
-    const { data: leadsCount, error: leadsError } = await supabase
       .from('leads')
       .select('count')
       .limit(1);
 
-    if (leadsError) {
-      console.error('Error testing leads table:', leadsError);
+    if (tablesError) {
+      console.error('Error testing connection:', tablesError);
+      throw tablesError;
     }
 
     return NextResponse.json({ 
       success: true, 
       message: 'API is working',
-      supabase: 'connected',
-      tables,
-      leadsCount,
       config: {
         hasResendKey: !!process.env.RESEND_API_KEY,
         hasZapierWebhook: !!process.env.ZAPIER_WEBHOOK_URL,
@@ -91,7 +59,6 @@ export async function GET() {
     return NextResponse.json({ 
       success: false, 
       error: error instanceof Error ? error.message : 'Unknown error',
-      details: error instanceof Error ? error : undefined,
       config: {
         hasResendKey: !!process.env.RESEND_API_KEY,
         hasZapierWebhook: !!process.env.ZAPIER_WEBHOOK_URL,
@@ -120,10 +87,29 @@ const sendEmail = async (to: string, subject: string, html: string) => {
 // Send data to Zapier webhook
 const sendToZapier = async (data: any) => {
   try {
+    // Format data specifically for HubSpot integration via Zapier
+    const zapierData = {
+      leads: {
+        firstName: data.leads.firstName,
+        lastName: data.leads.lastName,
+        email: data.leads.email,
+        phone: data.leads.phone,
+        age: data.leads.age,
+        gender: data.leads.gender,
+        healthStatus: data.leads.healthStatus,
+        coverageAmount: data.leads.coverageAmount,
+        termLength: data.leads.termLength,
+        tobaccoUse: data.leads.tobaccoUse,
+        occupation: data.leads.occupation,
+        annualIncome: data.leads.annualIncome,
+        source: data.leads.source
+      }
+    }
+
     const res = await fetch(process.env.ZAPIER_WEBHOOK_URL!, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
+      body: JSON.stringify(zapierData),
     })
     
     if (!res.ok) {
@@ -159,15 +145,23 @@ const trackEvent = async (eventName: string, eventData: any) => {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
+    const submissionData = body.submissionData || body
     
-    // Prepare lead data with dynamic fields
+    // Prepare lead data matching the exact table structure
     const leadData = {
-      funnel_type: body.funnelType || 'term_life',
-      submission_data: body.submissionData || body, // Store all form fields in JSONB
-      submitted_at: new Date().toISOString(),
-      utm_data: body.utmData || null,
-      status: 'new',
-      notes: null
+      first_name: submissionData.firstName || '',
+      last_name: submissionData.lastName || '',
+      email: submissionData.email || '',
+      phone: submissionData.phone || '',
+      age: submissionData.age || '',
+      gender: submissionData.gender || '',
+      health_status: submissionData.healthStatus || '',
+      coverage_amount: submissionData.coverage || '',
+      term_length: submissionData.termLength || '',
+      tobacco_use: submissionData.tobaccoUse || 'no',
+      occupation: submissionData.occupation || 'Not Provided',
+      annual_income: submissionData.annualIncome || '',
+      source: body.funnelType || 'term_life_quote_form'
     }
 
     // Insert into Supabase
@@ -190,20 +184,29 @@ export async function POST(request: Request) {
       'New Quote Request',
       `
         <h2>New Quote Request Received</h2>
-        <p><strong>Funnel Type:</strong> ${leadData.funnel_type}</p>
-        <pre>${JSON.stringify(leadData.submission_data, null, 2)}</pre>
-        ${leadData.utm_data ? `<p><strong>UTM Data:</strong> ${JSON.stringify(leadData.utm_data, null, 2)}</p>` : ''}
+        <p><strong>Name:</strong> ${leadData.first_name} ${leadData.last_name}</p>
+        <p><strong>Email:</strong> ${leadData.email}</p>
+        <p><strong>Phone:</strong> ${leadData.phone}</p>
+        <p><strong>Age:</strong> ${leadData.age}</p>
+        <p><strong>Gender:</strong> ${leadData.gender}</p>
+        <p><strong>Health Status:</strong> ${leadData.health_status}</p>
+        <p><strong>Coverage Amount:</strong> ${leadData.coverage_amount}</p>
+        <p><strong>Term Length:</strong> ${leadData.term_length}</p>
+        <p><strong>Tobacco Use:</strong> ${leadData.tobacco_use}</p>
+        <p><strong>Occupation:</strong> ${leadData.occupation}</p>
+        <p><strong>Annual Income:</strong> ${leadData.annual_income}</p>
+        <p><strong>Source:</strong> ${leadData.source}</p>
       `
     )
 
     // Send confirmation email to lead
-    if (leadData.submission_data.email) {
+    if (leadData.email) {
       await sendEmail(
-        leadData.submission_data.email,
+        leadData.email,
         'Your Quote Request Has Been Received',
         `
           <h2>Thank You for Your Quote Request</h2>
-          <p>Dear ${leadData.submission_data.firstName},</p>
+          <p>Dear ${leadData.first_name},</p>
           <p>We have received your quote request and will be in touch shortly with personalized options for your life insurance coverage.</p>
           <p>If you have any questions, please contact us at ${process.env.EMAIL_TO}.</p>
           <p>Best regards,<br>The QuoteLinker Team</p>
@@ -212,12 +215,29 @@ export async function POST(request: Request) {
     }
 
     // Send to Zapier for HubSpot integration
-    await sendToZapier(leadData)
+    await sendToZapier({
+      leads: {
+        firstName: leadData.first_name,
+        lastName: leadData.last_name,
+        email: leadData.email,
+        phone: leadData.phone,
+        age: leadData.age,
+        gender: leadData.gender,
+        healthStatus: leadData.health_status,
+        coverageAmount: leadData.coverage_amount,
+        termLength: leadData.term_length,
+        tobaccoUse: leadData.tobacco_use,
+        occupation: leadData.occupation,
+        annualIncome: leadData.annual_income,
+        source: leadData.source
+      }
+    })
 
     // Track submission in GA4
     await trackEvent('quote_submitted', {
-      funnel_type: leadData.funnel_type,
-      ...leadData.utm_data
+      source: leadData.source,
+      coverage_amount: leadData.coverage_amount,
+      term_length: leadData.term_length
     })
 
     return NextResponse.json({
