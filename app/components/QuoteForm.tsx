@@ -152,28 +152,28 @@ export default function QuoteForm({ funnelType = 'term_life' }: QuoteFormProps) 
   };
 
   const handleNext = () => {
-    const stepFields = currentStep === 1 
+    const stepFields: (keyof FormData)[] = currentStep === 0 
+      ? ['insuranceType', 'coverageAmount', 'termLength']
+      : currentStep === 1
       ? ['firstName', 'lastName', 'email', 'phone']
-      : currentStep === 2
-      ? ['age', 'gender', 'healthStatus', 'tobaccoUse']
-      : ['coverageAmount', 'termLength']
+      : ['dateOfBirth', 'gender', 'height', 'weight', 'tobaccoUse'];
     
-    const errors: Record<string, string> = {}
+    const errors: Partial<Record<keyof FormData, string>> = {};
     stepFields.forEach(field => {
-      const value = formData[field as keyof FormData]
-      const error = validateField(field as keyof FormData, value)
+      const value = formData[field];
+      const error = validateField(field, value);
       if (error) {
-        errors[field] = error
+        errors[field] = error;
       }
-    })
+    });
 
     if (Object.keys(errors).length === 0) {
-      setCurrentStep(prev => prev + 1)
-      setValidationErrors({})
+      setCurrentStep(prev => prev + 1);
+      setValidationErrors({});
     } else {
-      setValidationErrors(errors)
+      setValidationErrors(errors);
     }
-  }
+  };
 
   const handleBack = () => {
     setCurrentStep(prev => prev - 1)
