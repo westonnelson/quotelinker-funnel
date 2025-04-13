@@ -90,6 +90,15 @@ jobs:
           scope: ${{ secrets.VERCEL_ORG_ID }}
           github-comment: false
         env:
+          # Client-side variables (public)
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_GTM_ID: ${{ secrets.NEXT_PUBLIC_GTM_ID }}
+          NEXT_PUBLIC_GA4_ID: ${{ secrets.NEXT_PUBLIC_GA4_ID }}
+          NEXT_PUBLIC_CALENDLY_LINK: ${{ secrets.NEXT_PUBLIC_CALENDLY_LINK }}
+          NEXT_PUBLIC_CALENDLY_EMBED_URL: ${{ secrets.NEXT_PUBLIC_CALENDLY_EMBED_URL }}
+          
+          # Server-side variables (protected)
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
