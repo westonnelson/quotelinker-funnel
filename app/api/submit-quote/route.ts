@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { Resend } from 'resend'
 
-// Initialize Supabase client
+// Initialize Supabase client with service role key for admin operations
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
@@ -101,207 +101,136 @@ export async function GET() {
   }
 }
 
-// Add better error handling for email sending
+// Send email using Resend
 const sendEmail = async (to: string, subject: string, html: string) => {
   try {
-    const res = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
-      },
-      body: JSON.stringify({
-        from: 'QuoteLinker <quotes@quotelinker.com>',
-        to,
-        subject,
-        html,
-      }),
-    });
-
-    if (!res.ok) {
-      const error = await res.json();
-      console.error('Resend API error:', error);
-      throw new Error(`Failed to send email: ${error.message}`);
-    }
-
-    return await res.json();
+    const result = await resend.emails.send({
+      from: process.env.EMAIL_FROM!,
+      to,
+      subject,
+      html,
+    })
+    return result
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw error;
+    console.error('Error sending email:', error)
+    throw error
   }
-};
+}
 
-// Add better error handling for Zapier webhook
+// Send data to Zapier webhook
 const sendToZapier = async (data: any) => {
   try {
     const res = await fetch(process.env.ZAPIER_WEBHOOK_URL!, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
-    });
-
+    })
+    
     if (!res.ok) {
-      const error = await res.json();
-      console.error('Zapier webhook error:', error);
-      throw new Error(`Failed to send data to Zapier: ${error.message}`);
+      throw new Error(`Zapier webhook failed: ${res.statusText}`)
     }
-
-    return await res.json();
+    
+    return await res.json()
   } catch (error) {
-    console.error('Error sending data to Zapier:', error);
-    throw error;
+    console.error('Error sending to Zapier:', error)
+    throw error
   }
-};
+}
+
+// Track event in GA4
+const trackEvent = async (eventName: string, eventData: any) => {
+  try {
+    await fetch(`https://www.google-analytics.com/mp/collect?measurement_id=${process.env.NEXT_PUBLIC_GA4_ID}&api_secret=${process.env.GA4_API_SECRET}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        client_id: 'server_api',
+        events: [{
+          name: eventName,
+          params: eventData
+        }]
+      })
+    })
+  } catch (error) {
+    console.error('Error tracking GA4 event:', error)
+  }
+}
 
 // Main submission endpoint
 export async function POST(request: Request) {
   try {
-    console.log('Starting POST request handler');
-    console.log('Supabase config:', {
-      url: process.env.NEXT_PUBLIC_SUPABASE_URL,
-      hasServiceRoleKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-    });
-
-    const body = await request.json();
-    console.log('Received request body:', body);
-
-    // Validate required fields
-    const requiredFields = ['firstName', 'lastName', 'email', 'phone', 'age', 'gender', 'healthStatus', 'coverageAmount', 'termLength'];
-    const missingFields = requiredFields.filter(field => !body[field]);
+    const body = await request.json()
     
-    if (missingFields.length > 0) {
-      console.error('Missing required fields:', missingFields);
-      return new Response(JSON.stringify({
-        success: false,
-        error: `Missing required fields: ${missingFields.join(', ')}`
-      }), {
-        status: 400,
-        headers: corsHeaders
-      });
-    }
-
-    // Map and clean the data
+    // Prepare lead data with dynamic fields
     const leadData = {
-      first_name: body.firstName.trim(),
-      last_name: body.lastName.trim(),
-      email: body.email.toLowerCase().trim(),
-      phone: body.phone.trim(),
-      age: Number(body.age),
-      gender: body.gender.toLowerCase(),
-      health_status: body.healthStatus.toLowerCase(),
-      coverage_amount: Number(body.coverageAmount),
-      term_length: Number(body.termLength),
-      tobacco_use: body.tobaccoUse ? 'yes' : 'no',
-      occupation: body.occupation?.trim() || 'Not Provided',
-      annual_income: body.annualIncome ? Number(body.annualIncome) : null,
-      source: 'term_life_quote_form',
-      created_at: new Date().toISOString(),
-    };
-
-    console.log('Attempting to insert lead data:', leadData);
+      funnel_type: body.funnelType || 'term_life',
+      submission_data: body.submissionData || body, // Store all form fields in JSONB
+      submitted_at: new Date().toISOString(),
+      utm_data: body.utmData || null,
+      status: 'new',
+      notes: null
+    }
 
     // Insert into Supabase
     const { data, error: insertError } = await supabase
       .from('leads')
       .insert([leadData])
-      .select();
+      .select()
 
     if (insertError) {
-      console.error('Error inserting lead:', insertError);
-      return new Response(JSON.stringify({
-        success: false,
-        error: insertError.message,
-        details: insertError
-      }), {
-        status: 500,
-        headers: corsHeaders
-      });
+      console.error('Error inserting lead:', insertError)
+      return NextResponse.json({ 
+        success: false, 
+        error: insertError.message 
+      }, { status: 500, headers: corsHeaders })
     }
 
-    console.log('Successfully inserted lead:', data);
+    // Send notification email to admin
+    await sendEmail(
+      process.env.EMAIL_TO!,
+      'New Quote Request',
+      `
+        <h2>New Quote Request Received</h2>
+        <p><strong>Funnel Type:</strong> ${leadData.funnel_type}</p>
+        <pre>${JSON.stringify(leadData.submission_data, null, 2)}</pre>
+        ${leadData.utm_data ? `<p><strong>UTM Data:</strong> ${JSON.stringify(leadData.utm_data, null, 2)}</p>` : ''}
+      `
+    )
 
-    // Send to Zapier if webhook URL is configured
-    if (process.env.ZAPIER_WEBHOOK_URL) {
-      try {
-        await sendToZapier(leadData);
-        console.log('Successfully sent data to Zapier');
-      } catch (error) {
-        console.error('Failed to send data to Zapier:', error);
-      }
+    // Send confirmation email to lead
+    if (leadData.submission_data.email) {
+      await sendEmail(
+        leadData.submission_data.email,
+        'Your Quote Request Has Been Received',
+        `
+          <h2>Thank You for Your Quote Request</h2>
+          <p>Dear ${leadData.submission_data.firstName},</p>
+          <p>We have received your quote request and will be in touch shortly with personalized options for your life insurance coverage.</p>
+          <p>If you have any questions, please contact us at ${process.env.EMAIL_TO}.</p>
+          <p>Best regards,<br>The QuoteLinker Team</p>
+        `
+      )
     }
 
-    // Send notification email if Resend API key is configured
-    if (process.env.RESEND_API_KEY) {
-      try {
-        await sendEmail(
-          process.env.EMAIL_TO!,
-          'New Quote Request',
-          `
-            <h2>New Quote Request Received</h2>
-            <p><strong>Name:</strong> ${leadData.first_name} ${leadData.last_name}</p>
-            <p><strong>Email:</strong> ${leadData.email}</p>
-            <p><strong>Phone:</strong> ${leadData.phone}</p>
-            <p><strong>Age:</strong> ${leadData.age}</p>
-            <p><strong>Gender:</strong> ${leadData.gender}</p>
-            <p><strong>Health Status:</strong> ${leadData.health_status}</p>
-            <p><strong>Coverage Amount:</strong> $${leadData.coverage_amount.toLocaleString()}</p>
-            <p><strong>Term Length:</strong> ${leadData.term_length} years</p>
-            <p><strong>Tobacco Use:</strong> ${leadData.tobacco_use}</p>
-            <p><strong>Occupation:</strong> ${leadData.occupation}</p>
-            ${leadData.annual_income ? `<p><strong>Annual Income:</strong> $${leadData.annual_income.toLocaleString()}</p>` : ''}
-          `
-        );
-        console.log('Successfully sent notification email');
-      } catch (error) {
-        console.error('Failed to send notification email:', error);
-      }
-    }
+    // Send to Zapier for HubSpot integration
+    await sendToZapier(leadData)
 
-    // Send confirmation email to the lead
-    if (process.env.RESEND_API_KEY) {
-      try {
-        await sendEmail(
-          leadData.email,
-          'Your Quote Request Has Been Received',
-          `
-            <h2>Thank You for Your Quote Request</h2>
-            <p>Dear ${leadData.first_name},</p>
-            <p>We have received your quote request and will be in touch shortly with personalized options for your life insurance coverage.</p>
-            <p>Here's a summary of your request:</p>
-            <ul>
-              <li>Coverage Amount: $${leadData.coverage_amount.toLocaleString()}</li>
-              <li>Term Length: ${leadData.term_length} years</li>
-            </ul>
-            <p>If you have any questions in the meantime, please don't hesitate to contact us at ${process.env.EMAIL_TO}.</p>
-            <p>Best regards,<br>The QuoteLinker Team</p>
-          `
-        );
-        console.log('Successfully sent confirmation email to lead');
-      } catch (error) {
-        console.error('Failed to send confirmation email to lead:', error);
-      }
-    }
+    // Track submission in GA4
+    await trackEvent('quote_submitted', {
+      funnel_type: leadData.funnel_type,
+      ...leadData.utm_data
+    })
 
-    return new Response(JSON.stringify({
+    return NextResponse.json({
       success: true,
       message: 'Quote request submitted successfully',
       data
-    }), {
-      status: 200,
-      headers: corsHeaders
-    });
+    }, { headers: corsHeaders })
 
   } catch (error) {
-    console.error('Error processing quote request:', error);
-    return new Response(JSON.stringify({
+    console.error('Error processing quote request:', error)
+    return NextResponse.json({
       success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-      details: error instanceof Error ? error : undefined
-    }), {
-      status: 500,
-      headers: corsHeaders
-    });
+      error: error instanceof Error ? error.message : 'Unknown error'
+    }, { status: 500, headers: corsHeaders })
   }
 } 
