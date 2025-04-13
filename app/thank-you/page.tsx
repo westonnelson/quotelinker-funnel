@@ -3,11 +3,6 @@
 import Link from 'next/link'
 import { CheckCircleIcon } from '@heroicons/react/24/outline'
 
-export const metadata = {
-  title: 'Thank You | QuoteLinker',
-  description: 'Thank you for your quote request. We will be in touch shortly.',
-}
-
 export default function ThankYou() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">
